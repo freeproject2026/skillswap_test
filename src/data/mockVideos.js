@@ -1,0 +1,267 @@
+// Realistic mock videos for SkillSwap Video Learning Feed
+
+export const CATEGORIES = [
+  'All',
+  'Programming',
+  'Design',
+  'AI & Data',
+  'Communication',
+  'Business',
+  'Music & Audio',
+  'Languages',
+  'Education'
+];
+
+export const MOCK_VIDEOS = [
+  {
+    id: 'vid_1',
+    title: 'Mastering Modern Three.js: Build Interactive 3D Web Experiences from Scratch',
+    description: 'Learn the core building blocks of Three.js, camera setups, lights, geometry meshes, and physics shaders. We walk step-by-step through creating a live interactive solar system and lighting rigs.',
+    category: 'Programming',
+    duration: '18:45',
+    views: '48.2K',
+    likes: 3820,
+    isLiked: false,
+    isSaved: false,
+    createdAt: '2 days ago',
+    thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1000&q=80',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    isFeatured: true,
+    skillsTaught: ['Three.js', 'WebGL', 'JavaScript', '3D Graphics'],
+    creator: {
+      id: 'usr_1',
+      name: 'Elena Rostova',
+      username: 'elenacodes',
+      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
+      title: 'Senior 3D Artist & Creative Technologist',
+      subscribers: '14.2K',
+      isFollowed: true,
+      rating: 4.95,
+      tokensRate: 60
+    },
+    comments: [
+      {
+        id: 'c1',
+        author: 'Alex Rivera',
+        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+        text: 'This was exactly what I needed for my WebGL portfolio project! Bookmarking for our session this weekend.',
+        createdAt: '1 day ago',
+        likes: 14
+      },
+      {
+        id: 'c2',
+        author: 'Marcus Chen',
+        avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
+        text: 'The explanation of PBR materials and environmental lighting was super clear.',
+        createdAt: '18 hours ago',
+        likes: 9
+      }
+    ]
+  },
+  {
+    id: 'vid_2',
+    title: 'Figma to Code: Building Responsive Design Systems with Tailwind CSS',
+    description: 'Transform complex Figma component variants, color palettes, and typographic tokens into clean, production-ready Tailwind utility classes and React component abstractions.',
+    category: 'Design',
+    duration: '24:10',
+    views: '89.5K',
+    likes: 6150,
+    isLiked: true,
+    isSaved: true,
+    createdAt: '4 days ago',
+    thumbnail: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=1000&q=80',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    isFeatured: false,
+    skillsTaught: ['Figma', 'Design Systems', 'Tailwind CSS', 'UI/UX'],
+    creator: {
+      id: 'usr_4',
+      name: 'Marcus Chen',
+      username: 'marcus_design',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
+      title: 'Lead Product Designer',
+      subscribers: '28.9K',
+      isFollowed: false,
+      rating: 4.92,
+      tokensRate: 60
+    },
+    comments: [
+      {
+        id: 'c3',
+        author: 'Elena Rostova',
+        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
+        text: 'The Figma variant auto-layout trick saved our design team hours!',
+        createdAt: '2 days ago',
+        likes: 31
+      }
+    ]
+  },
+  {
+    id: 'vid_3',
+    title: 'LLM Fine-Tuning & Vector Embeddings Explained for Frontend Developers',
+    description: 'Demystifying how Retrieval Augmented Generation (RAG) and vector search work under the hood. Learn how to connect your React client to local embeddings and Pinecone/Chroma.',
+    category: 'AI & Data',
+    duration: '31:15',
+    views: '63.1K',
+    likes: 5210,
+    isLiked: false,
+    isSaved: false,
+    createdAt: '1 week ago',
+    thumbnail: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&w=1000&q=80',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    isFeatured: false,
+    skillsTaught: ['Python', 'Machine Learning', 'Vector Databases', 'RAG'],
+    creator: {
+      id: 'usr_3',
+      name: 'Dr. Priya Sharma',
+      username: 'priya_ai',
+      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
+      title: 'AI Researcher & Data Scientist',
+      subscribers: '35.4K',
+      isFollowed: true,
+      rating: 5.0,
+      tokensRate: 75
+    },
+    comments: []
+  },
+  {
+    id: 'vid_4',
+    title: 'Conversational Spanish Hacks: 10 Phrases to Sound Like a Native Speaker',
+    description: 'Skip rigid textbook grammar and learn the colloquial phrases, cadence, and cultural idioms actual native speakers in Spain and Latin America use daily in casual conversation.',
+    category: 'Languages',
+    duration: '14:20',
+    views: '32.8K',
+    likes: 2940,
+    isLiked: false,
+    isSaved: true,
+    createdAt: '5 days ago',
+    thumbnail: 'https://images.unsplash.com/photo-1543783207-ec64e4d95325?auto=format&fit=crop&w=1000&q=80',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    isFeatured: false,
+    skillsTaught: ['Spanish', 'Pronunciation', 'Language Learning', 'Culture'],
+    creator: {
+      id: 'usr_2',
+      name: 'Carlos Mendoza',
+      username: 'carlos_m',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+      title: 'Native Spanish Coach',
+      subscribers: '19.8K',
+      isFollowed: true,
+      rating: 4.88,
+      tokensRate: 50
+    },
+    comments: []
+  },
+  {
+    id: 'vid_5',
+    title: 'Executive Pitching: How to Speak Confidently in Meetings & High-Stakes Talks',
+    description: 'Master vocal resonance, strategic pauses, body language, and slide structure so your audience listens attentively and buys into your vision without hesitation.',
+    category: 'Communication',
+    duration: '19:50',
+    views: '54.0K',
+    likes: 4120,
+    isLiked: false,
+    isSaved: false,
+    createdAt: '3 days ago',
+    thumbnail: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1000&q=80',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+    isFeatured: false,
+    skillsTaught: ['Public Speaking', 'Executive Presence', 'Storytelling', 'Leadership'],
+    creator: {
+      id: 'usr_5',
+      name: 'Sarah Jenkins',
+      username: 'sarah_speaks',
+      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80',
+      title: 'TEDx Speaker & Executive Coach',
+      subscribers: '41.1K',
+      isFollowed: false,
+      rating: 4.97,
+      tokensRate: 70
+    },
+    comments: []
+  },
+  {
+    id: 'vid_6',
+    title: 'Modern Music Synthesis: Crafting Cyberpunk & Lo-Fi Basslines in Ableton',
+    description: 'Hands-on walkthrough using wavetable synthesizers, frequency modulation, analog tape saturation, and sidechain compression to create warm punchy basslines.',
+    category: 'Music & Audio',
+    duration: '22:15',
+    views: '21.4K',
+    likes: 1870,
+    isLiked: false,
+    isSaved: false,
+    createdAt: '6 days ago',
+    thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1000&q=80',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
+    isFeatured: false,
+    skillsTaught: ['Ableton Live', 'Sound Design', 'Audio Production', 'Synthesizers'],
+    creator: {
+      id: 'usr_6',
+      name: 'Liam O’Connor',
+      username: 'liam_music',
+      avatar: 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&w=200&q=80',
+      title: 'Sound Designer & Music Producer',
+      subscribers: '9.8K',
+      isFollowed: false,
+      rating: 4.84,
+      tokensRate: 50
+    },
+    comments: []
+  },
+  {
+    id: 'vid_7',
+    title: 'React 19 Server Actions & Optimistic UI Updates in Practice',
+    description: 'Discover how React 19 useActionState, useOptimistic, and Server Actions dramatically simplify forms, client state mutation, and pending spinner indicators.',
+    category: 'Programming',
+    duration: '27:40',
+    views: '76.8K',
+    likes: 6890,
+    isLiked: true,
+    isSaved: false,
+    createdAt: '1 day ago',
+    thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1000&q=80',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    isFeatured: false,
+    skillsTaught: ['React 19', 'JavaScript', 'Frontend Architecture', 'State Management'],
+    creator: {
+      id: 'usr_me',
+      name: 'Alex Rivera',
+      username: 'alexrivera',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+      title: 'Full Stack Engineer',
+      subscribers: '18.4K',
+      isFollowed: true,
+      rating: 4.9,
+      tokensRate: 60
+    },
+    comments: []
+  },
+  {
+    id: 'vid_8',
+    title: 'Bootstrap to \$10K MRR: Growth Strategies for Solo Devs & Creators',
+    description: 'Practical breakdown of how to find your first 100 paying customers, write persuasive landing pages, and market developer tools without paid ad budgets.',
+    category: 'Business',
+    duration: '20:30',
+    views: '41.2K',
+    likes: 3410,
+    isLiked: false,
+    isSaved: true,
+    createdAt: '3 days ago',
+    thumbnail: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1000&q=80',
+    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    isFeatured: false,
+    skillsTaught: ['Product Strategy', 'SaaS Growth', 'Marketing', 'Monetization'],
+    creator: {
+      id: 'usr_5',
+      name: 'Sarah Jenkins',
+      username: 'sarah_speaks',
+      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80',
+      title: 'TEDx Speaker & Executive Coach',
+      subscribers: '41.1K',
+      isFollowed: false,
+      rating: 4.97,
+      tokensRate: 70
+    },
+    comments: []
+  }
+];
+
