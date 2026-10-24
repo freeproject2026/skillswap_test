@@ -13,12 +13,22 @@ import CommunityPromoCard from '../components/home/CommunityPromoCard';
 import ExploreSkillsSection from '../components/home/ExploreSkillsSection';
 import HomeFooter from '../components/home/HomeFooter';
 import EditProfileModal from '../components/EditProfileModal';
+import DashboardCustomizerModal from '../components/home/DashboardCustomizerModal';
+import AuthModal from '../components/auth/AuthModal';
 import { useApp } from '../context/AppContext';
 
 export const HomePage = () => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
-  const { currentUser } = useApp();
+  const {
+    currentUser,
+    dashboardPrefs,
+    dashboardCustomizerOpen,
+    setDashboardCustomizerOpen,
+    authModalOpen,
+    setAuthModalOpen,
+    authModalTab
+  } = useApp();
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors overflow-x-hidden">
@@ -29,7 +39,7 @@ export const HomePage = () => {
         setMobileOpen={setMobileSidebarOpen}
       />
 
-      {/* Main Wrapper with Left Margin for the Desktop Sidebar (w-64 = 16rem = 256px) */}
+      {/* Main Wrapper with Left Margin for Desktop Sidebar */}
       <div className="flex-1 flex flex-col lg:pl-64 min-w-0 transition-all">
         
         {/* 2. Top Header in Main Content Area */}
@@ -38,45 +48,48 @@ export const HomePage = () => {
         {/* 3. Center Dashboard + Right Column */}
         <div className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6 space-y-6">
           
-          {/* Main 2-column or 3-column layout */}
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
             
             {/* Center Main Dashboard Column (8 cols on xl) */}
             <div className="xl:col-span-8 space-y-6 min-w-0">
               
-              {/* Main Hero Banner */}
-              <HeroBanner />
+              {/* Main Hero Banner (Customizable) */}
+              {dashboardPrefs.hero !== false && <HeroBanner />}
 
-              {/* Quick Actions (5 cards) */}
-              <QuickActions />
+              {/* Quick Actions (Customizable) */}
+              {dashboardPrefs.quickActions !== false && <QuickActions />}
 
-              {/* Middle Section: Upcoming Sessions (Full width of center column) */}
-              <UpcomingSessionsCard />
+              {/* Upcoming Sessions (Customizable) */}
+              {dashboardPrefs.upcomingSessions !== false && <UpcomingSessionsCard />}
 
-              {/* Twin Cards Grid: Credits Wallet + Learning Progress */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-                <CreditsWalletCard />
-                <LearningProgressCard />
-              </div>
+              {/* Twin Cards Grid: Credits Wallet + Learning Progress (Customizable) */}
+              {(dashboardPrefs.creditsWallet !== false || dashboardPrefs.learningProgress !== false) && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+                  {dashboardPrefs.creditsWallet !== false && <CreditsWalletCard />}
+                  {dashboardPrefs.learningProgress !== false && <LearningProgressCard />}
+                </div>
+              )}
 
-              {/* Explore Skills Section */}
-              <ExploreSkillsSection />
+              {/* Explore Skills Section (Customizable) */}
+              {dashboardPrefs.exploreSkills !== false && <ExploreSkillsSection />}
             </div>
 
             {/* Right Sidebar Column (4 cols on xl) */}
             <div className="xl:col-span-4 space-y-5 min-w-0">
               
-              {/* Student Profile Card */}
-              <StudentProfileCard onEditProfile={() => setEditProfileOpen(true)} />
+              {/* Student Profile Card (Customizable) */}
+              {dashboardPrefs.studentProfile !== false && (
+                <StudentProfileCard onEditProfile={() => setEditProfileOpen(true)} />
+              )}
 
-              {/* Recommended Students */}
-              <RecommendedStudentsCard />
+              {/* Recommended Students (Customizable) */}
+              {dashboardPrefs.recommendedStudents !== false && <RecommendedStudentsCard />}
 
-              {/* Popular Skills on Campus */}
-              <PopularSkillsCard />
+              {/* Popular Skills on Campus (Customizable) */}
+              {dashboardPrefs.popularSkills !== false && <PopularSkillsCard />}
 
-              {/* Community Promotion Card */}
-              <CommunityPromoCard />
+              {/* Community Promotion Card (Customizable) */}
+              {dashboardPrefs.communityPromo !== false && <CommunityPromoCard />}
             </div>
 
           </div>
@@ -93,6 +106,19 @@ export const HomePage = () => {
         onClose={() => setEditProfileOpen(false)}
         currentProfile={currentUser}
         onSaveSuccess={() => setEditProfileOpen(false)}
+      />
+
+      {/* Dashboard Section Customizer Modal */}
+      <DashboardCustomizerModal
+        isOpen={dashboardCustomizerOpen}
+        onClose={() => setDashboardCustomizerOpen(false)}
+      />
+
+      {/* Authentication & Guest Modal */}
+      <AuthModal
+        isOpen={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        initialTab={authModalTab}
       />
 
     </div>

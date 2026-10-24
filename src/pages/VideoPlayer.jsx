@@ -4,11 +4,12 @@ import { Heart, Bookmark, Share2, Play, MessageCircle, ChevronDown, ChevronUp, S
 import VideoCard from '../components/VideoCard';
 import { videoService } from '../services/videoService';
 import { useApp } from '../context/AppContext';
+import { AuthModal } from '../components/auth/AuthModal';
 
 export const VideoPlayer = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentUser, followingIds, toggleFollow, showToast } = useApp();
+  const { currentUser, isGuest, setAuthModalOpen, followingIds, toggleFollow, showToast } = useApp();
   const [video, setVideo] = useState(null);
   const [related, setRelated] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,6 +44,10 @@ export const VideoPlayer = () => {
   }, [id]);
 
   const handleLike = async () => {
+    if (isGuest || !currentUser) {
+      setAuthModalOpen(true);
+      return;
+    }
     try {
       const updated = await videoService.toggleLike(video.id);
       setLiked(updated.isLiked);
@@ -51,6 +56,10 @@ export const VideoPlayer = () => {
   };
 
   const handleSave = async () => {
+    if (isGuest || !currentUser) {
+      setAuthModalOpen(true);
+      return;
+    }
     try {
       const updated = await videoService.toggleSave(video.id);
       setSaved(updated.isSaved);
@@ -63,7 +72,19 @@ export const VideoPlayer = () => {
     showToast('Link copied!');
   };
 
+  const handleFollowClick = () => {
+    if (isGuest || !currentUser) {
+      setAuthModalOpen(true);
+      return;
+    }
+    toggleFollow(video.creator.id, video.creator.name);
+  };
+
   const handleAddComment = async () => {
+    if (isGuest || !currentUser) {
+      setAuthModalOpen(true);
+      return;
+    }
     if (!commentText.trim()) return;
     try {
       const newComment = await videoService.addComment(video.id, {
@@ -160,11 +181,11 @@ export const VideoPlayer = () => {
           </div>
           {video.creator.id !== 'usr_me' && (
             <button
-              onClick={() => toggleFollow(video.creator.id, video.creator.name)}
+              onClick={handleFollowClick}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
                 isFollowing
                   ? 'bg-teal-50 text-teal-700 border border-teal-200 hover:bg-teal-100 dark:bg-teal-950/50 dark:text-teal-300 dark:border-teal-800'
-                  : 'bg-teal-600 text-white hover:bg-teal-700 shadow-sm'
+                  : 'bg-teal-600 text-white hover:bg-teal-700 shadow-xs'
               }`}
             >
               {isFollowing ? <><Check className="w-3.5 h-3.5" />Following</> : <><UserPlus className="w-3.5 h-3.5" />Follow</>}
@@ -191,7 +212,7 @@ export const VideoPlayer = () => {
 
           {/* Add Comment */}
           <div className="flex items-center gap-2 mb-4">
-            <img src={currentUser?.avatar || ''} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+            <img src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80'} alt="" className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-teal-500/30" />
             <div className="flex-1 flex items-center gap-2 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 bg-white dark:bg-slate-800/80 focus-within:border-teal-400 focus-within:ring-2 focus-within:ring-teal-100 dark:focus-within:ring-teal-900/40 transition-all">
               <input
                 type="text"
@@ -199,7 +220,7 @@ export const VideoPlayer = () => {
                 onChange={(e) => setCommentText(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
                 placeholder="Add a comment..."
-                className="flex-1 text-sm bg-transparent outline-none placeholder:text-slate-400 dark:text-slate-100"
+                className="flex-1 text-sm bg-transparent outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 dark:text-slate-100"
               />
               <button onClick={handleAddComment} disabled={!commentText.trim()} className="p-1 rounded-lg text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/50 disabled:text-slate-300 dark:disabled:text-slate-600 disabled:hover:bg-transparent transition-colors">
                 <Send className="w-4 h-4" />
@@ -230,6 +251,7 @@ export const VideoPlayer = () => {
           </div>
         )}
       </div>
+      <AuthModal />
     </div>
   );
 };

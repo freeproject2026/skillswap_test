@@ -8,12 +8,14 @@ import { sessionService } from '../services/sessionService';
 import { walletService } from '../services/walletService';
 import { useApp } from '../context/AppContext';
 import { ReportModal } from '../components/ReportModal';
+import { AuthGate } from '../components/auth/AuthGate';
+import { AuthModal } from '../components/auth/AuthModal';
 
 const TABS = ['All', 'Upcoming', 'Awaiting Confirmation', 'Completed', 'Disputed'];
 
 export const SessionsPage = () => {
   const navigate = useNavigate();
-  const { showToast } = useApp();
+  const { showToast, isGuest, currentUser, setAuthModalOpen } = useApp();
 
   const [sessions, setSessions] = useState([]);
   const [activeTab, setActiveTab] = useState('All');
@@ -35,8 +37,12 @@ export const SessionsPage = () => {
   };
 
   useEffect(() => {
-    loadSessions();
-  }, []);
+    if (!isGuest && currentUser) {
+      loadSessions();
+    } else {
+      setLoading(false);
+    }
+  }, [isGuest, currentUser]);
 
   const handleConfirm = async (session, role = 'learner') => {
     try {
@@ -73,10 +79,8 @@ export const SessionsPage = () => {
 
     try {
       await sessionService.cancelSession(session.id, 'Cancelled by student');
-      if (session.creditCost > 0) {
-        await walletService.refundCreditsOnCancel(session.skill, session.tutorName, session.creditCost);
-      }
-      showToast('Session cancelled. 100% escrow credits refunded.', 'info');
+      await walletService.refundEscrowHold(session.skill, session.tutorName, session.creditCost);
+      showToast('Session cancelled. Reserved escrow returned to your balance.', 'info');
       loadSessions();
     } catch (err) {
       console.error(err);
@@ -86,7 +90,7 @@ export const SessionsPage = () => {
   const handleSubmitReview = async () => {
     if (!reviewModalSession) return;
     try {
-      await sessionService.submitSessionReview(reviewModalSession.id, {
+      await sessionService.reviewSession(reviewModalSession.id, {
         teachingQuality: reviewRating.teaching,
         communication: reviewRating.communication,
         feedback: reviewRating.feedback.trim()
@@ -100,6 +104,20 @@ export const SessionsPage = () => {
     }
   };
 
+  if (isGuest || !currentUser) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <AuthGate
+          title="Student Learning Sessions"
+          description="Sign in or register a verified student profile to view scheduled sessions, join active learning rooms, manage escrow releases, and complete mutual reviews."
+          actionText="Sign In to Access Sessions"
+          onAction={() => setAuthModalOpen(true)}
+        />
+        <AuthModal />
+      </div>
+    );
+  }
+
   const filteredSessions = sessions.filter(s => {
     if (activeTab === 'All') return true;
     return s.status.toLowerCase() === activeTab.toLowerCase();
@@ -110,11 +128,11 @@ export const SessionsPage = () => {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-            <Calendar className="w-6 h-6 text-teal-600" />
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+            <Calendar className="w-6 h-6 text-teal-600 dark:text-teal-400" />
             <span>Learning Sessions & Escrow</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Manage upcoming bookings, launch learning rooms, and two-sided completion reviews
           </p>
         </div>
@@ -137,7 +155,7 @@ export const SessionsPage = () => {
             className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
               activeTab === tab
                 ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-teal-300'
+                : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-300'
             }`}
           >
             {tab}
@@ -155,80 +173,80 @@ export const SessionsPage = () => {
           {filteredSessions.map(session => (
             <div
               key={session.id}
-              className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-soft hover:shadow-card transition-all"
+              className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-soft hover:shadow-card transition-all"
             >
               {/* Top Row: Skill & Status */}
               <div className="flex items-start justify-between gap-3 mb-3">
                 <div>
                   <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider mb-1.5 ${
                     session.status === 'Completed'
-                      ? 'bg-emerald-100 text-emerald-800'
+                      ? 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-400'
                       : session.status === 'Upcoming'
-                      ? 'bg-teal-100 text-teal-800'
+                      ? 'bg-teal-100 dark:bg-teal-950/40 text-teal-800 dark:text-teal-400'
                       : session.status === 'Awaiting Confirmation'
-                      ? 'bg-amber-100 text-amber-800 animate-pulse'
+                      ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 animate-pulse'
                       : session.status === 'Disputed'
-                      ? 'bg-rose-100 text-rose-800'
-                      : 'bg-slate-100 text-slate-700'
+                      ? 'bg-rose-100 dark:bg-rose-950/40 text-rose-800 dark:text-rose-400'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                   }`}>
                     {session.status}
                   </span>
-                  <h3 className="text-base font-bold text-slate-800 leading-tight">
+                  <h3 className="text-base font-bold text-slate-800 dark:text-white leading-tight">
                     {session.skill}
                   </h3>
                 </div>
 
                 {/* Credit Cost Badge */}
                 <div className="text-right shrink-0">
-                  <span className="text-sm font-extrabold text-teal-700">
+                  <span className="text-sm font-extrabold text-teal-700 dark:text-teal-400">
                     {session.creditCost === 0 ? 'Mutual Swap (0 Cr)' : `${session.creditCost} Credits`}
                   </span>
                   <p className="text-[10px] text-slate-400">
-                    Escrow: <strong className={session.escrowStatus === 'Reserved' ? 'text-amber-600' : session.escrowStatus === 'Paused' ? 'text-rose-500' : 'text-emerald-600'}>{session.escrowStatus}</strong>
+                    Escrow: <strong className={session.escrowStatus === 'Reserved' ? 'text-amber-600 dark:text-amber-400' : session.escrowStatus === 'Paused' ? 'text-rose-500' : 'text-emerald-600 dark:text-emerald-400'}>{session.escrowStatus}</strong>
                   </p>
                 </div>
               </div>
 
               {/* Participant & Schedule Strip */}
-              <div className="flex flex-wrap items-center gap-4 py-3 border-y border-slate-100 text-xs text-slate-600">
+              <div className="flex flex-wrap items-center gap-4 py-3 border-y border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300">
                 <div className="flex items-center gap-2">
                   <img src={session.tutorAvatar} alt="" className="w-6 h-6 rounded-full object-cover ring-1 ring-teal-500" />
                   <span>Tutor: <strong>{session.tutorName}</strong> ({session.tutorCollege})</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-slate-500">
-                  <Clock className="w-3.5 h-3.5 text-teal-600" />
+                <div className="flex items-center gap-1.5 text-slate-500 dark:text-slate-400">
+                  <Clock className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
                   <span>{session.scheduledDate} at {session.scheduledTime} ({session.durationMinutes} mins)</span>
                 </div>
-                <div className="text-slate-500">
+                <div className="text-slate-500 dark:text-slate-400">
                   Format: <strong>{session.format}</strong>
                 </div>
               </div>
 
               {/* Objective */}
               {session.learningObjective && (
-                <p className="text-xs text-slate-600 mt-3 leading-relaxed">
-                  <strong className="text-slate-700">Objective:</strong> {session.learningObjective}
+                <p className="text-xs text-slate-600 dark:text-slate-300 mt-3 leading-relaxed">
+                  <strong className="text-slate-700 dark:text-slate-200">Objective:</strong> {session.learningObjective}
                 </p>
               )}
 
               {/* Dispute Warning Notice if active */}
               {session.status === 'Disputed' && (
-                <div className="mt-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 flex items-start gap-2">
+                <div className="mt-3 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 text-xs text-rose-800 dark:text-rose-300 flex items-start gap-2">
                   <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
                   <div>
                     <strong>Dispute Under Mediation:</strong> {session.disputeReason}
-                    <p className="text-[11px] mt-0.5 text-rose-700">Credit settlement is paused. Both parties may submit chat logs to campus moderation.</p>
+                    <p className="text-[11px] mt-0.5 text-rose-700 dark:text-rose-400">Credit settlement is paused. Both parties may submit chat logs to campus moderation.</p>
                   </div>
                 </div>
               )}
 
               {/* Action Buttons Row */}
-              <div className="flex flex-wrap items-center justify-between gap-2.5 mt-4 pt-3 border-t border-slate-100">
+              <div className="flex flex-wrap items-center justify-between gap-2.5 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-2">
                   {/* Enter Learning Room */}
                   <button
                     onClick={() => navigate(`/room/${session.id}`)}
-                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-semibold hover:bg-slate-800 transition-colors shadow-xs"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-slate-900 dark:bg-slate-800 text-white text-xs font-semibold hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors shadow-xs"
                   >
                     <Video className="w-3.5 h-3.5 text-teal-400" />
                     <span>Enter Learning Room</span>
@@ -241,7 +259,7 @@ export const SessionsPage = () => {
                       disabled={session.learnerConfirmed}
                       className={`flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
                         session.learnerConfirmed
-                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200 cursor-default'
+                          ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 cursor-default'
                           : 'bg-teal-600 text-white hover:bg-teal-700 border-teal-600'
                       }`}
                     >
@@ -254,7 +272,7 @@ export const SessionsPage = () => {
                   {session.status === 'Completed' && (
                     <button
                       onClick={() => setReviewModalSession(session)}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold hover:bg-amber-100"
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/40"
                     >
                       <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                       <span>{session.ratingGiven ? 'Update Review' : 'Leave Peer Review'}</span>
@@ -267,7 +285,7 @@ export const SessionsPage = () => {
                   {session.status !== 'Completed' && session.status !== 'Cancelled' && (
                     <button
                       onClick={() => handleDispute(session)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 text-xs flex items-center gap-1"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs flex items-center gap-1"
                       title="File session dispute"
                     >
                       <AlertTriangle className="w-3.5 h-3.5" />
@@ -279,7 +297,7 @@ export const SessionsPage = () => {
                   {session.status === 'Upcoming' && (
                     <button
                       onClick={() => handleCancel(session)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 text-xs flex items-center gap-1"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs flex items-center gap-1"
                       title="Cancel booking"
                     >
                       <XCircle className="w-3.5 h-3.5" />
@@ -292,9 +310,9 @@ export const SessionsPage = () => {
           ))}
         </div>
       ) : (
-        <div className="py-20 text-center bg-white rounded-2xl border border-slate-100 p-8 shadow-soft">
-          <Calendar className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-          <h3 className="text-base font-bold text-slate-700">No {activeTab.toLowerCase()} sessions found</h3>
+        <div className="py-20 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-8 shadow-soft">
+          <Calendar className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+          <h3 className="text-base font-bold text-slate-700 dark:text-slate-200">No {activeTab.toLowerCase()} sessions found</h3>
           <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1 mb-5">
             Connect with campus peers or browse the skill marketplace to book your next collaborative session.
           </p>
@@ -310,19 +328,19 @@ export const SessionsPage = () => {
       {/* Review Modal */}
       {reviewModalSession && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-slate-100 space-y-4">
-            <h3 className="text-base font-bold text-slate-800">Review {reviewModalSession.tutorName}</h3>
-            <p className="text-xs text-slate-500">Provide authentic academic feedback on session quality and communication.</p>
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-100 dark:border-slate-800 space-y-4">
+            <h3 className="text-base font-bold text-slate-800 dark:text-white">Review {reviewModalSession.tutorName}</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Provide authentic academic feedback on session quality and communication.</p>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Teaching Quality (1-5)</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Teaching Quality (1-5)</label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map(n => (
                   <button
                     key={n}
                     type="button"
                     onClick={() => setReviewRating({ ...reviewRating, teaching: n })}
-                    className={`p-2 rounded-lg text-xs font-bold ${reviewRating.teaching >= n ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-400'}`}
+                    className={`p-2 rounded-lg text-xs font-bold ${reviewRating.teaching >= n ? 'bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
                   >
                     ★ {n}
                   </button>
@@ -331,14 +349,14 @@ export const SessionsPage = () => {
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Communication & Preparedness (1-5)</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Communication & Preparedness (1-5)</label>
               <div className="flex gap-2">
                 {[1, 2, 3, 4, 5].map(n => (
                   <button
                     key={n}
                     type="button"
                     onClick={() => setReviewRating({ ...reviewRating, communication: n })}
-                    className={`p-2 rounded-lg text-xs font-bold ${reviewRating.communication >= n ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-400'}`}
+                    className={`p-2 rounded-lg text-xs font-bold ${reviewRating.communication >= n ? 'bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}
                   >
                     ★ {n}
                   </button>
@@ -347,20 +365,20 @@ export const SessionsPage = () => {
             </div>
 
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">Written Feedback</label>
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">Written Feedback</label>
               <textarea
                 value={reviewRating.feedback}
                 onChange={e => setReviewRating({ ...reviewRating, feedback: e.target.value })}
                 placeholder="What went well? How was the pacing and clarity of explanations?"
                 rows={3}
-                className="w-full p-3 rounded-xl border border-slate-200 text-xs focus:border-teal-500 outline-none"
+                className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 text-xs focus:border-teal-500 outline-none"
               />
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
               <button
                 onClick={() => setReviewModalSession(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 Cancel
               </button>
@@ -374,6 +392,7 @@ export const SessionsPage = () => {
           </div>
         </div>
       )}
+      <AuthModal />
     </div>
   );
 };

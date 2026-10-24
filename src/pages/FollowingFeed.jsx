@@ -4,14 +4,20 @@ import { UserPlus, Users } from 'lucide-react';
 import VideoCard from '../components/VideoCard';
 import { videoService } from '../services/videoService';
 import { useApp } from '../context/AppContext';
+import { AuthGate } from '../components/auth/AuthGate';
+import { AuthModal } from '../components/auth/AuthModal';
 
 export const FollowingFeed = () => {
   const navigate = useNavigate();
-  const { followingIds } = useApp();
+  const { followingIds, isGuest, currentUser, setAuthModalOpen } = useApp();
   const [videos, setVideos] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (isGuest || !currentUser) {
+      setLoading(false);
+      return;
+    }
     const load = async () => {
       setLoading(true);
       try {
@@ -24,7 +30,21 @@ export const FollowingFeed = () => {
       }
     };
     load();
-  }, [followingIds]);
+  }, [followingIds, isGuest, currentUser]);
+
+  if (isGuest || !currentUser) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <AuthGate
+          title="Following Activity & Videos"
+          description="Sign in or register to follow campus peers, watch exclusive student tutorials, and personalize your learning feed."
+          actionText="Sign In to View Feed"
+          onAction={() => setAuthModalOpen(true)}
+        />
+        <AuthModal />
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24">
@@ -53,12 +73,13 @@ export const FollowingFeed = () => {
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-5 max-w-xs">Discover talented creators and follow them to see their latest videos and tutorials here.</p>
           <button
             onClick={() => navigate('/connect/people')}
-            className="px-6 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors shadow-sm"
+            className="px-6 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors shadow-xs"
           >
             Discover Creators
           </button>
         </div>
       )}
+      <AuthModal />
     </div>
   );
 };

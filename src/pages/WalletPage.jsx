@@ -7,10 +7,19 @@ import {
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { walletService } from '../services/walletService';
+import AuthGate from '../components/auth/AuthGate';
+import AuthModal from '../components/auth/AuthModal';
 
 export const WalletPage = () => {
   const navigate = useNavigate();
-  const { currentUser, showToast } = useApp();
+  const {
+    currentUser,
+    isGuest,
+    showToast,
+    authModalOpen,
+    setAuthModalOpen,
+    authModalTab
+  } = useApp();
 
   const [walletSummary, setWalletSummary] = useState(null);
   const [ledger, setLedger] = useState([]);
@@ -35,26 +44,45 @@ export const WalletPage = () => {
   };
 
   useEffect(() => {
-    loadWallet();
-  }, [activeLedgerTab]);
+    if (currentUser) {
+      loadWallet();
+    }
+  }, [activeLedgerTab, currentUser]);
+
+  // Guest / Unauthenticated Protection
+  if (isGuest || !currentUser) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center px-4 py-8">
+        <AuthGate
+          featureName="Student Skill-Credit Wallet & Escrow Ledger"
+          description="Sign in with your campus account to view your available exchange credits, escrow balances, and audit history."
+        />
+        <AuthModal
+          isOpen={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          initialTab={authModalTab}
+        />
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-3xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24 space-y-6">
+    <div className="max-w-3xl mx-auto px-3 sm:px-6 py-4 sm:py-6 pb-24 space-y-6 text-slate-800 dark:text-slate-100 transition-colors">
       {/* Back Button */}
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors"
+        className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
 
       {/* Header Title */}
       <div>
-        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 flex items-center gap-2">
-          <Wallet className="w-6 h-6 text-teal-600" />
+        <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+          <Wallet className="w-6 h-6 text-teal-600 dark:text-teal-400" />
           <span>Student Skill-Credit Wallet & Ledger</span>
         </h1>
-        <p className="text-xs text-slate-500 mt-0.5">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
           Dual ledger separating community peer-exchange credits from paid tutoring tokens
         </p>
       </div>
@@ -62,7 +90,7 @@ export const WalletPage = () => {
       {/* Dual Balances Display Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Card 1: Peer Skill-Exchange Credits */}
-        <div className="relative rounded-2xl bg-gradient-to-br from-slate-900 via-navy-900 to-slate-800 p-6 text-white overflow-hidden shadow-card">
+        <div className="relative rounded-2xl bg-gradient-to-br from-slate-900 via-navy-900 to-slate-800 p-6 text-white overflow-hidden shadow-card border border-slate-700/60">
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-teal-500/20 via-transparent to-transparent"></div>
           <div className="relative z-10 flex flex-col justify-between h-full">
             <div>
@@ -120,51 +148,51 @@ export const WalletPage = () => {
       </div>
 
       {/* Escrow Workflow Transparency Card */}
-      <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-soft space-y-3">
-        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-teal-600" />
+      <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-soft space-y-3">
+        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-teal-600 dark:text-teal-400" />
           <span>How SkillSwap Escrow Protects Students</span>
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-1 text-xs">
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-            <span className="font-bold text-slate-700 block">1. Reserve</span>
-            <p className="text-[11px] text-slate-500 leading-snug">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-800 space-y-1">
+            <span className="font-bold text-slate-700 dark:text-slate-300 block">1. Reserve</span>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
               Credits are locked in escrow when a booking is accepted. Neither party can withdraw early.
             </p>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-            <span className="font-bold text-slate-700 block">2. Learn</span>
-            <p className="text-[11px] text-slate-500 leading-snug">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-800 space-y-1">
+            <span className="font-bold text-slate-700 dark:text-slate-300 block">2. Learn</span>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
               Students meet in the Learning Room, take notes, and complete practical task proofs.
             </p>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-            <span className="font-bold text-teal-800 block">3. Two-Sided Settle</span>
-            <p className="text-[11px] text-slate-500 leading-snug">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-800 space-y-1">
+            <span className="font-bold text-teal-800 dark:text-teal-300 block">3. Two-Sided Settle</span>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
               Both learner and tutor click 'Confirm'. Only then are escrow credits released.
             </p>
           </div>
 
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
-            <span className="font-bold text-rose-700 block">4. Mediation</span>
-            <p className="text-[11px] text-slate-500 leading-snug">
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-850 border border-slate-200/80 dark:border-slate-800 space-y-1">
+            <span className="font-bold text-rose-700 dark:text-rose-400 block">4. Mediation</span>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
               If an issue occurs, click 'Dispute'. Settlement pauses immediately until campus review.
             </p>
           </div>
         </div>
 
-        <p className="text-[11px] text-slate-400 italic pt-1">
-          Frontend simulated ledger. No real currency is transmitted or deposited.
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 italic pt-1">
+          Simulated escrow ledger. Dual balances are strictly validated.
         </p>
       </div>
 
       {/* Transaction Ledger */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-soft overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-soft overflow-hidden">
+        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wider">
             Transaction Ledger & Audit Trail
           </h3>
 
@@ -176,8 +204,8 @@ export const WalletPage = () => {
                 onClick={() => setActiveLedgerTab(tab)}
                 className={`px-3 py-1 rounded-lg font-bold transition-all ${
                   activeLedgerTab === tab
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'text-slate-500 hover:bg-slate-100'
+                    ? 'bg-slate-900 dark:bg-teal-600 text-white shadow-xs'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
                 {tab}
@@ -187,7 +215,7 @@ export const WalletPage = () => {
         </div>
 
         {/* Ledger Rows */}
-        <div className="divide-y divide-slate-100">
+        <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {ledger.map(tx => {
             const isExpanded = expandedTxId === tx.id;
             const isPositive = (tx.amount || tx.tokens || 0) > 0;
@@ -197,18 +225,18 @@ export const WalletPage = () => {
               <div
                 key={tx.id}
                 onClick={() => setExpandedTxId(isExpanded ? null : tx.id)}
-                className="p-4 hover:bg-slate-50/70 transition-colors cursor-pointer"
+                className="p-4 hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors cursor-pointer"
               >
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                       tx.status === 'Completed'
-                        ? isPositive ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'
+                        ? isPositive ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                         : tx.status === 'Reserved'
-                        ? 'bg-amber-50 text-amber-600'
+                        ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400'
                         : tx.status === 'Disputed'
-                        ? 'bg-rose-50 text-rose-600'
-                        : 'bg-blue-50 text-blue-600'
+                        ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400'
+                        : 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400'
                     }`}>
                       {tx.status === 'Reserved' ? (
                         <Lock className="w-4 h-4" />
@@ -222,10 +250,10 @@ export const WalletPage = () => {
                     </div>
 
                     <div className="min-w-0">
-                      <p className="text-xs sm:text-sm font-bold text-slate-800 truncate">
+                      <p className="text-xs sm:text-sm font-bold text-slate-800 dark:text-slate-100 truncate">
                         {tx.title}
                       </p>
-                      <p className="text-[11px] text-slate-500 truncate">
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                         {tx.counterparty} · {tx.date}
                       </p>
                     </div>
@@ -234,23 +262,23 @@ export const WalletPage = () => {
                   <div className="text-right shrink-0">
                     <p className={`text-xs sm:text-sm font-extrabold ${
                       tx.status === 'Reserved'
-                        ? 'text-amber-600'
+                        ? 'text-amber-600 dark:text-amber-400'
                         : tx.status === 'Disputed'
-                        ? 'text-rose-600'
+                        ? 'text-rose-600 dark:text-rose-400'
                         : isPositive
-                        ? 'text-emerald-600'
-                        : 'text-slate-800'
+                        ? 'text-emerald-600 dark:text-emerald-400'
+                        : 'text-slate-800 dark:text-slate-200'
                     }`}>
                       {isPositive ? `+${amountVal}` : amountVal} {tx.currencyType === 'paid_token' ? 'Tokens' : 'Credits'}
                     </p>
                     <span className={`inline-block text-[10px] font-bold px-1.5 py-0.2 rounded ${
                       tx.status === 'Completed'
-                        ? 'bg-emerald-100 text-emerald-800'
+                        ? 'bg-emerald-100 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300'
                         : tx.status === 'Reserved'
-                        ? 'bg-amber-100 text-amber-800'
+                        ? 'bg-amber-100 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300'
                         : tx.status === 'Disputed'
-                        ? 'bg-rose-100 text-rose-800'
-                        : 'bg-slate-100 text-slate-600'
+                        ? 'bg-rose-100 dark:bg-rose-950/50 text-rose-800 dark:text-rose-300'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     }`}>
                       {tx.status}
                     </span>
@@ -259,7 +287,7 @@ export const WalletPage = () => {
 
                 {/* Expanded Details View */}
                 {isExpanded && tx.note && (
-                  <div className="mt-3 pt-2.5 border-t border-slate-100 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl">
+                  <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-850 p-2.5 rounded-xl">
                     <p><strong>Ledger Audit Note:</strong> {tx.note}</p>
                     <p className="text-[11px] text-slate-400 mt-0.5">Reference ID: {tx.id}</p>
                   </div>

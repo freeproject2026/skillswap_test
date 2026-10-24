@@ -8,8 +8,9 @@ const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [tokens, setTokens] = useState(100);
-  const [activeExperience, setActiveExperience] = useState('video'); // 'video' | 'connect'
+  const [activeExperience, setActiveExperience] = useState('connect'); // default to student connect & skillswap
   const [unreadNotifications, setUnreadNotifications] = useState(2);
   const [unreadMessages, setUnreadMessages] = useState(1);
   const [followingIds, setFollowingIds] = useState(['usr_1', 'usr_3', 'usr_2']);
@@ -18,6 +19,35 @@ export const AppProvider = ({ children }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [toast, setToast] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Auth Modal State
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalTab, setAuthModalTab] = useState('login');
+
+  // Dashboard Customizer Modal State
+  const [dashboardCustomizerOpen, setDashboardCustomizerOpen] = useState(false);
+  const [dashboardPrefs, setDashboardPrefs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('skillswap_dashboard_prefs');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Failed to load dashboard prefs', e);
+    }
+    return {
+      hero: true,
+      quickActions: true,
+      upcomingSessions: true,
+      creditsWallet: true,
+      learningProgress: true,
+      exploreSkills: true,
+      studentProfile: true,
+      recommendedStudents: true,
+      popularSkills: true,
+      communityPromo: true
+    };
+  });
+
+  // Theme (Dark / Light)
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('skillswap_theme') || 'light';
   });
@@ -42,8 +72,14 @@ export const AppProvider = ({ children }) => {
     const initApp = async () => {
       try {
         const user = await userService.getCurrentUser();
-        setCurrentUser(user);
-        setTokens(user.tokens || 100);
+        if (user) {
+          setCurrentUser(user);
+          setIsGuest(false);
+          setTokens(user.tokens || 100);
+        } else {
+          setCurrentUser(null);
+          setIsGuest(true);
+        }
 
         const connStatuses = await connectionService.getConnectionStatuses();
         setConnectionStatuses(connStatuses);
@@ -67,6 +103,43 @@ export const AppProvider = ({ children }) => {
     setTimeout(() => {
       setToast(prev => (prev?.message === message ? null : prev));
     }, 3500);
+  };
+
+  const handleLogin = async (email, password) => {
+    const user = await userService.login(email, password);
+    setCurrentUser(user);
+    setIsGuest(false);
+    setTokens(user.tokens || 100);
+    return user;
+  };
+
+  const handleRegister = async (studentData) => {
+    const user = await userService.register(studentData);
+    setCurrentUser(user);
+    setIsGuest(false);
+    setTokens(user.tokens || 100);
+    return user;
+  };
+
+  const handleLoginWithPhone = async (phone, otp) => {
+    const user = await userService.loginWithPhone(phone, otp);
+    setCurrentUser(user);
+    setIsGuest(false);
+    setTokens(user.tokens || 100);
+    return user;
+  };
+
+  const handleLoginAsGuest = () => {
+    userService.logout();
+    setCurrentUser(null);
+    setIsGuest(true);
+  };
+
+  const handleLogout = async () => {
+    await userService.logout();
+    setCurrentUser(null);
+    setIsGuest(true);
+    showToast('Logged out. Browsing as Guest.', 'info');
   };
 
   const handleUpdateTokens = async (amount, reason = '') => {
@@ -135,6 +208,21 @@ export const AppProvider = ({ children }) => {
       value={{
         currentUser,
         setCurrentUser,
+        isGuest,
+        setIsGuest,
+        login: handleLogin,
+        register: handleRegister,
+        loginWithPhone: handleLoginWithPhone,
+        loginAsGuest: handleLoginAsGuest,
+        logout: handleLogout,
+        authModalOpen,
+        setAuthModalOpen,
+        authModalTab,
+        setAuthModalTab,
+        dashboardPrefs,
+        setDashboardPrefs,
+        dashboardCustomizerOpen,
+        setDashboardCustomizerOpen,
         tokens,
         setTokens,
         updateTokens: handleUpdateTokens,
@@ -191,4 +279,3 @@ export const useApp = () => {
 };
 
 export default AppContext;
-

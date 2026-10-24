@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   GraduationCap, CheckCircle2, Edit3, Globe,
-  ExternalLink, ShieldCheck, User
+  ShieldCheck, User, LogIn, UserPlus, Sparkles
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
 
@@ -19,20 +19,52 @@ const LinkedinIcon = ({ className = 'w-3.5 h-3.5' }) => (
 );
 
 export const StudentProfileCard = ({ onEditProfile }) => {
-  const { currentUser } = useApp();
+  const { currentUser, isGuest, setAuthModalOpen } = useApp();
 
-  const name = currentUser?.name || 'Alex Rivera';
-  const college = currentUser?.college || 'UC Berkeley';
-  const branch = currentUser?.branch || 'Computer Science & Engineering';
-  const semester = currentUser?.semester || '6th Semester';
-  const bio = currentUser?.bio || 'Building modern web apps by day, tutoring React & algorithms by night. Excited to master 3D WebGL and conversational Spanish this semester!';
-  const avatar = currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
-  const isVerified = Boolean(currentUser?.emailVerified);
-  const socialLinks = currentUser?.socialLinks || {
-    github: 'https://github.com/alexrivera-dev',
-    linkedin: 'https://linkedin.com/in/alexrivera-cs',
-    portfolio: 'https://alexrivera.dev'
-  };
+  // If unauthenticated or in Guest mode: show guest registration invitation instead of fake data
+  if (isGuest || !currentUser) {
+    return (
+      <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden space-y-4">
+        <div className="h-16 -mx-5 -mt-5 bg-gradient-to-r from-slate-200 via-teal-100 to-indigo-100 dark:from-slate-800 dark:via-teal-950/40 dark:to-indigo-950/40 relative"></div>
+        <div className="relative -mt-11 flex items-start justify-between">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 border-2 border-white dark:border-slate-900 shadow-md flex items-center justify-center text-slate-400">
+            <User className="w-8 h-8" />
+          </div>
+          <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold uppercase tracking-wider">
+            Guest Visitor
+          </span>
+        </div>
+
+        <div className="space-y-1">
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">
+            Create Your Student Profile
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Sign in with your campus email to showcase your skills, track earned credits, and unlock 1:1 learning exchanges.
+          </p>
+        </div>
+
+        <div className="pt-2 flex flex-col gap-2">
+          <button
+            onClick={() => setAuthModalOpen(true)}
+            className="w-full py-2.5 px-3 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            <span>Sign In or Register</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const name = currentUser.name;
+  const college = currentUser.college || 'UC Berkeley';
+  const branch = currentUser.branch || 'Computer Science & Engineering';
+  const semester = currentUser.semester || '6th Semester';
+  const bio = currentUser.bio || 'Excited to learn and exchange skills on SkillSwap!';
+  const avatar = currentUser.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80';
+  const isVerified = Boolean(currentUser.emailVerified);
+  const socialLinks = currentUser.socialLinks || {};
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 border border-slate-200/80 dark:border-slate-800 shadow-sm relative overflow-hidden space-y-4">
@@ -80,7 +112,7 @@ export const StudentProfileCard = ({ onEditProfile }) => {
         </div>
 
         <p className="text-xs text-slate-600 dark:text-slate-300 font-medium">
-          {branch} · {semester}
+          {branch} {semester && `· ${semester}`}
         </p>
 
         <p className="text-xs text-slate-400 dark:text-slate-400 flex items-center gap-1">

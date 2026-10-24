@@ -4,11 +4,13 @@ import { ArrowLeft, Send, Calendar, Clock, Coins, Sparkles, Check, X, Video, Mor
 import { chatService } from '../services/chatService';
 import { userService } from '../services/userService';
 import { useApp } from '../context/AppContext';
+import { AuthGate } from '../components/auth/AuthGate';
+import { AuthModal } from '../components/auth/AuthModal';
 
 export const ChatPage = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const { currentUser, showToast } = useApp();
+  const { currentUser, isGuest, setAuthModalOpen, showToast } = useApp();
   const [user, setUser] = useState(null);
   const [conversation, setConversation] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -21,6 +23,10 @@ export const ChatPage = () => {
   const messagesEnd = useRef(null);
 
   useEffect(() => {
+    if (isGuest || !currentUser) {
+      setLoading(false);
+      return;
+    }
     const load = async () => {
       setLoading(true);
       try {
@@ -30,12 +36,12 @@ export const ChatPage = () => {
         ]);
         setUser(u);
         setConversation(conv);
-        setMessages(conv.messages || []);
+        setMessages(conv?.messages || []);
       } catch (err) { console.error(err); }
       finally { setLoading(false); }
     };
     load();
-  }, [userId]);
+  }, [userId, isGuest, currentUser]);
 
   useEffect(() => {
     messagesEnd.current?.scrollIntoView({ behavior: 'smooth' });
@@ -77,12 +83,26 @@ export const ChatPage = () => {
     } catch (err) { console.error(err); }
   };
 
+  if (isGuest || !currentUser) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <AuthGate
+          title="Direct Student Messaging"
+          description="Sign in or register to send messages, propose collaborative study sessions, and coordinate learning exchanges with campus peers."
+          actionText="Sign In to Chat"
+          onAction={() => setAuthModalOpen(true)}
+        />
+        <AuthModal />
+      </div>
+    );
+  }
+
   if (loading) {
     return <div className="flex items-center justify-center min-h-[60vh]"><div className="w-8 h-8 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin"></div></div>;
   }
 
   if (!user) {
-    return <div className="text-center py-20"><p className="text-slate-500">User not found</p></div>;
+    return <div className="text-center py-20"><p className="text-slate-500 dark:text-slate-400">User not found</p></div>;
   }
 
   return (
@@ -128,7 +148,7 @@ export const ChatPage = () => {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 space-y-3">
         {messages.length === 0 && (
-          <div className="text-center py-10 text-slate-400">
+          <div className="text-center py-10 text-slate-400 dark:text-slate-500">
             <p className="text-sm">Start a conversation with {user.name}</p>
           </div>
         )}
@@ -170,7 +190,7 @@ export const ChatPage = () => {
 
           return (
             <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] sm:max-w-[70%] px-3.5 py-2.5 rounded-2xl ${isMe ? 'bg-teal-600 text-white rounded-br-md shadow-sm' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-bl-md shadow-sm'}`}>
+              <div className={`max-w-[85%] sm:max-w-[70%] px-3.5 py-2.5 rounded-2xl ${isMe ? 'bg-teal-600 text-white rounded-br-md shadow-xs' : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-bl-md shadow-xs'}`}>
                 <p className="text-sm leading-relaxed">{msg.text}</p>
                 <p className={`text-[10px] mt-1 ${isMe ? 'text-teal-200' : 'text-slate-400 dark:text-slate-500'}`}>{msg.timestamp}</p>
               </div>
@@ -182,10 +202,10 @@ export const ChatPage = () => {
 
       {/* Session Proposal Form */}
       {showPropose && (
-        <div className="mx-3 sm:mx-6 mb-2 p-3 rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-slate-850 shrink-0">
+        <div className="mx-3 sm:mx-6 mb-2 p-3 rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-slate-800/80 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-bold text-teal-800 dark:text-teal-200 flex items-center gap-1"><Sparkles className="w-3 h-3" /> Propose a Session</p>
-            <button onClick={() => setShowPropose(false)} className="p-1 rounded hover:bg-teal-100 dark:hover:bg-slate-750"><X className="w-3.5 h-3.5 text-teal-700 dark:text-teal-300" /></button>
+            <button onClick={() => setShowPropose(false)} className="p-1 rounded hover:bg-teal-100 dark:hover:bg-slate-700"><X className="w-3.5 h-3.5 text-teal-700 dark:text-teal-300" /></button>
           </div>
           <div className="grid grid-cols-3 gap-2 mb-2">
             <input type="text" value={proposeSkill} onChange={e => setProposeSkill(e.target.value)} placeholder="Skill topic" className="col-span-3 px-3 py-1.5 rounded-lg border border-teal-200 dark:border-slate-700 text-xs outline-none focus:border-teal-400 bg-white dark:bg-slate-800 dark:text-slate-100" />
@@ -216,6 +236,7 @@ export const ChatPage = () => {
           </button>
         </div>
       </div>
+      <AuthModal />
     </div>
   );
 };

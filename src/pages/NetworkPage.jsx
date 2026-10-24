@@ -3,6 +3,8 @@ import { Bell, CheckCheck, Filter } from 'lucide-react';
 import NotificationItem from '../components/NotificationItem';
 import { notificationService } from '../services/notificationService';
 import { useApp } from '../context/AppContext';
+import { AuthGate } from '../components/auth/AuthGate';
+import { AuthModal } from '../components/auth/AuthModal';
 
 const TABS = ['All', 'Unread', 'Connections', 'Sessions', 'Tokens'];
 
@@ -13,7 +15,7 @@ const TAB_TYPE_MAP = {
 };
 
 export const NetworkPage = () => {
-  const { acceptConnection, declineConnection, refreshNotificationCount, showToast } = useApp();
+  const { acceptConnection, declineConnection, refreshNotificationCount, showToast, isGuest, currentUser, setAuthModalOpen } = useApp();
   const [notifications, setNotifications] = useState([]);
   const [activeTab, setActiveTab] = useState('All');
   const [loading, setLoading] = useState(true);
@@ -27,7 +29,27 @@ export const NetworkPage = () => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { loadNotifications(); }, []);
+  useEffect(() => {
+    if (!isGuest && currentUser) {
+      loadNotifications();
+    } else {
+      setLoading(false);
+    }
+  }, [isGuest, currentUser]);
+
+  if (isGuest || !currentUser) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-8">
+        <AuthGate
+          title="Student Network & Activity"
+          description="Sign in or register a verified student profile to view connection requests, session reminders, credit alerts, and peer study invitations."
+          actionText="Sign In to View Network"
+          onAction={() => setAuthModalOpen(true)}
+        />
+        <AuthModal />
+      </div>
+    );
+  }
 
   const handleMarkRead = async (id) => {
     await notificationService.markAsRead(id);
@@ -88,7 +110,7 @@ export const NetworkPage = () => {
       {/* Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-3 no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0">
         {TABS.map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap ${activeTab === tab ? 'bg-teal-600 text-white border-teal-600 shadow-sm' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400 dark:hover:border-teal-500'}`}>
+          <button key={tab} onClick={() => setActiveTab(tab)} className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all whitespace-nowrap ${activeTab === tab ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-teal-400 dark:hover:border-teal-500'}`}>
             {tab}
           </button>
         ))}
@@ -111,11 +133,12 @@ export const NetworkPage = () => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-16 text-slate-400">
+        <div className="text-center py-16 text-slate-400 dark:text-slate-500">
           <Bell className="w-8 h-8 mx-auto mb-2 opacity-40" />
           <p className="text-sm">{activeTab === 'Unread' ? 'No unread notifications' : `No ${activeTab.toLowerCase()} notifications`}</p>
         </div>
       )}
+      <AuthModal />
     </div>
   );
 };

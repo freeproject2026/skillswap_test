@@ -58,11 +58,11 @@ export const SkillGapAnalyzerPage = () => {
       {/* Page Title */}
       <div>
         <div className="flex items-center gap-2">
-          <Compass className="w-6 h-6 text-teal-600" />
-          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900">AI Skill Gap Analyzer</h1>
-          <span className="px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 text-[10px] font-bold">Demo Engine</span>
+          <Compass className="w-6 h-6 text-teal-600 dark:text-teal-400" />
+          <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-white">AI Skill Gap Analyzer</h1>
+          <span className="px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 text-[10px] font-bold">Smart Heuristics</span>
         </div>
-        <p className="text-xs text-slate-500 mt-0.5">
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
           Select your target career aspiration to benchmark existing competencies and chart milestone paths with matching peer mentors
         </p>
       </div>
@@ -75,16 +75,16 @@ export const SkillGapAnalyzerPage = () => {
             onClick={() => setSelectedRoadmapId(r.id)}
             className={`p-4 rounded-2xl border text-left transition-all ${
               selectedRoadmapId === r.id
-                ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-teal-500/50'
-                : 'bg-white text-slate-800 border-slate-200 hover:border-teal-300'
+                ? 'bg-slate-900 dark:bg-slate-800 text-white border-slate-900 dark:border-slate-700 shadow-md ring-2 ring-teal-500/50'
+                : 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:border-teal-300'
             }`}
           >
             <h3 className="text-sm font-bold">{r.title}</h3>
-            <p className={`text-[11px] mt-1 line-clamp-2 ${selectedRoadmapId === r.id ? 'text-slate-300' : 'text-slate-500'}`}>
+            <p className={`text-[11px] mt-1 line-clamp-2 ${selectedRoadmapId === r.id ? 'text-slate-300' : 'text-slate-500 dark:text-slate-400'}`}>
               {r.role}
             </p>
             <div className="mt-3 flex items-center justify-between text-[11px] font-semibold">
-              <span className={selectedRoadmapId === r.id ? 'text-teal-400' : 'text-teal-600'}>
+              <span className={selectedRoadmapId === r.id ? 'text-teal-400' : 'text-teal-600 dark:text-teal-400'}>
                 {r.completedMilestones} of {r.totalMilestones} Completed
               </span>
             </div>
@@ -93,25 +93,25 @@ export const SkillGapAnalyzerPage = () => {
       </div>
 
       {/* Progress Card */}
-      <div className="p-5 rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-50 border border-teal-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-5 rounded-2xl bg-gradient-to-br from-teal-50 to-emerald-50 dark:from-teal-950/40 dark:to-emerald-950/30 border border-teal-100 dark:border-teal-900/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <span className="text-xs font-bold text-teal-900 uppercase tracking-wider block mb-1">
+          <span className="text-xs font-bold text-teal-900 dark:text-teal-200 uppercase tracking-wider block mb-1">
             Career Goal Readiness: {activeRoadmap.title}
           </span>
-          <p className="text-xs text-teal-800 max-w-lg leading-relaxed">
+          <p className="text-xs text-teal-800 dark:text-teal-300 max-w-lg leading-relaxed">
             {activeRoadmap.description}
           </p>
         </div>
 
         <div className="text-right shrink-0">
-          <p className="text-3xl font-extrabold text-teal-700">{completionPercent}%</p>
-          <span className="text-[11px] text-teal-600 font-semibold">Readiness Score</span>
+          <p className="text-3xl font-extrabold text-teal-700 dark:text-teal-400">{completionPercent}%</p>
+          <span className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold">Readiness Score</span>
         </div>
       </div>
 
       {/* Milestones Stepper */}
       <div className="space-y-4">
-        <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+        <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider flex items-center gap-2">
           <Layers className="w-4 h-4 text-slate-500" />
           <span>Recommended Learning Sequence & Milestones</span>
         </h3>
@@ -126,10 +126,10 @@ export const SkillGapAnalyzerPage = () => {
                 key={m.id}
                 className={`p-4 sm:p-5 rounded-2xl border transition-all ${
                   isCompleted
-                    ? 'bg-white border-emerald-200/80 shadow-xs'
+                    ? 'bg-white dark:bg-slate-900 border-emerald-200/80 dark:border-emerald-800/60 shadow-xs'
                     : isInProgress
-                    ? 'bg-white border-teal-300 shadow-soft ring-1 ring-teal-500/20'
-                    : 'bg-slate-50/70 border-slate-200/80 opacity-80'
+                    ? 'bg-white dark:bg-slate-900 border-teal-300 dark:border-teal-700 shadow-soft ring-1 ring-teal-500/20'
+                    : 'bg-slate-50/70 dark:bg-slate-900/50 border-slate-200/80 dark:border-slate-800 opacity-80'
                 }`}
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2.5">
@@ -140,7 +140,7 @@ export const SkillGapAnalyzerPage = () => {
                       title={isCompleted ? 'Mark In Progress' : 'Mark Completed'}
                     >
                       {isCompleted ? (
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-50" />
+                        <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-50 dark:fill-emerald-950" />
                       ) : (
                         <Circle className="w-5 h-5 text-slate-400" />
                       )}
@@ -149,7 +149,7 @@ export const SkillGapAnalyzerPage = () => {
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                         Milestone 0{index + 1}
                       </span>
-                      <h4 className="text-sm font-bold text-slate-800 leading-snug">
+                      <h4 className="text-sm font-bold text-slate-800 dark:text-white leading-snug">
                         {m.title}
                       </h4>
                     </div>
@@ -157,11 +157,11 @@ export const SkillGapAnalyzerPage = () => {
 
                   <div className="flex items-center gap-2 self-start sm:self-auto">
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      isCompleted ? 'bg-emerald-100 text-emerald-800' : isInProgress ? 'bg-teal-100 text-teal-800' : 'bg-slate-200 text-slate-600'
+                      isCompleted ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300' : isInProgress ? 'bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     }`}>
                       {m.status}
                     </span>
-                    <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-semibold">
+                    <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[10px] font-semibold">
                       {m.currentLevel}
                     </span>
                   </div>
@@ -170,23 +170,23 @@ export const SkillGapAnalyzerPage = () => {
                 {/* Skills In This Milestone */}
                 <div className="flex flex-wrap gap-1.5 ml-8 mb-3">
                   {m.skills.map((s, idx) => (
-                    <span key={idx} className="px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[11px] font-medium">
+                    <span key={idx} className="px-2.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-medium">
                       {s}
                     </span>
                   ))}
                 </div>
 
                 {/* Practical Project Recommendation */}
-                <div className="ml-8 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 space-y-1">
+                <div className="ml-8 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-300 space-y-1">
                   <p>
-                    <strong className="text-slate-700">Recommended Project Evidence:</strong> {m.suggestedProject}
+                    <strong className="text-slate-700 dark:text-slate-200">Recommended Project Evidence:</strong> {m.suggestedProject}
                   </p>
                   {m.mentors && m.mentors.length > 0 && (
                     <div className="flex items-center justify-between pt-1 text-[11px]">
-                      <span className="text-teal-700">Matching Campus Mentors: <strong>{m.mentors.join(', ')}</strong></span>
+                      <span className="text-teal-700 dark:text-teal-300">Matching Campus Mentors: <strong>{m.mentors.join(', ')}</strong></span>
                       <button
                         onClick={() => navigate('/connect')}
-                        className="font-bold text-teal-600 hover:text-teal-800"
+                        className="font-bold text-teal-600 dark:text-teal-400 hover:text-teal-800 dark:hover:text-teal-200"
                       >
                         Find Tutor →
                       </button>
@@ -200,7 +200,7 @@ export const SkillGapAnalyzerPage = () => {
       </div>
 
       {/* Disclaimer */}
-      <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 text-xs text-slate-500 flex items-start gap-2.5 leading-relaxed">
+      <div className="p-4 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 flex items-start gap-2.5 leading-relaxed">
         <AlertCircle className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
         <p>
           Roadmaps and skill gap projections are simulated heuristic recommendations designed for student peer guidance. They do not guarantee employment or commercial certifications.

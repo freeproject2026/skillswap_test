@@ -1,38 +1,91 @@
-// Central API client wrapper for SkillSwap frontend
-// Prepared for seamless drop-in backend connection (REST / GraphQL / WebSocket)
+// Central API client for SkillSwap frontend
+// Connects to Node.js / Express backend with token persistence and safe fallback
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Helper to simulate realistic network delay during development
 export const simulateDelay = (ms = 180) => new Promise(resolve => setTimeout(resolve, ms));
+
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('skillswap_token');
+  const headers = {
+    'Content-Type': 'application/json'
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+};
 
 export const apiClient = {
   get: async (endpoint) => {
-    await simulateDelay();
-    // When real backend is plugged in, replace with:
-    // return fetch(`${API_BASE_URL}${endpoint}`).then(res => res.json());
-    console.debug(`[API GET] ${endpoint}`);
-    return null;
+    try {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Request failed with status ${res.status}`);
+      }
+      return await res.json();
+    } catch (err) {
+      console.warn(`[apiClient GET fallback] ${endpoint}:`, err.message);
+      return null;
+    }
   },
 
   post: async (endpoint, data) => {
-    await simulateDelay();
-    console.debug(`[API POST] ${endpoint}`, data);
-    return null;
+    try {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(resData.error || `Request failed with status ${res.status}`);
+      }
+      return resData;
+    } catch (err) {
+      console.warn(`[apiClient POST fallback] ${endpoint}:`, err.message);
+      throw err;
+    }
   },
 
   put: async (endpoint, data) => {
-    await simulateDelay();
-    console.debug(`[API PUT] ${endpoint}`, data);
-    return null;
+    try {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(resData.error || `Request failed with status ${res.status}`);
+      }
+      return resData;
+    } catch (err) {
+      console.warn(`[apiClient PUT fallback] ${endpoint}:`, err.message);
+      throw err;
+    }
   },
 
   delete: async (endpoint) => {
-    await simulateDelay();
-    console.debug(`[API DELETE] ${endpoint}`);
-    return null;
+    try {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders()
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(resData.error || `Request failed with status ${res.status}`);
+      }
+      return resData;
+    } catch (err) {
+      console.warn(`[apiClient DELETE fallback] ${endpoint}:`, err.message);
+      throw err;
+    }
   }
 };
 
 export default apiClient;
-

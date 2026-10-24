@@ -4,6 +4,7 @@ import { AppProvider } from './context/AppContext';
 import Header from './components/Header';
 import BottomNavigation from './components/BottomNavigation';
 import SearchOverlay from './components/SearchOverlay';
+import FloatingAIAssistant from './components/ai/FloatingAIAssistant';
 
 // Redesigned Home Page (Page 1)
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -47,12 +48,15 @@ function AppContent() {
   const isHomePage = location.pathname === '/';
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans text-slate-900 antialiased">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans text-slate-900 dark:text-slate-100 antialiased transition-colors duration-200">
       {/* Global Header (shown on non-Home pages to prevent duplicate navigation) */}
       {!isHomePage && <Header />}
 
       {/* Search Overlay (global) */}
       <SearchOverlay />
+
+      {/* Floating AI Assistant (global on all pages) */}
+      <FloatingAIAssistant />
 
       {/* Main Content */}
       <main className="flex-1 w-full">
