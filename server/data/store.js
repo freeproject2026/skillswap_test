@@ -120,7 +120,7 @@ export const createUser = async (userData) => {
     _id: id,
     ...userData,
     passwordHash,
-    creditsBalance: userData.creditsBalance || 120,
+    creditsBalance: userData.creditsBalance || 0,
     creditsEscrow: 0,
     rating: 5.0,
     reviewCount: 0,
@@ -295,16 +295,4 @@ export const deleteQuiz = async (id) => {
   const before = memoryQuizzes.length;
   memoryQuizzes = memoryQuizzes.filter(q => !(q.id === id || q._id === id));
   return memoryQuizzes.length < before;
-};
-
-  if (isMongoConnected()) {
-    const users = await User.find(query).select('-passwordHash');
-    return users.map(u => u.toSafeObject());
-  }
-
-  return memoryUsers.map(u => {
-    const safe = { ...u };
-    delete safe.passwordHash;
-    return safe;
-  });
 };

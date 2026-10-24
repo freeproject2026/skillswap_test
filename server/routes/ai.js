@@ -65,65 +65,61 @@ router.post('/chat', optionalAuth, async (req, res) => {
     const apiKey = process.env.OPENAI_API_KEY;
     const model = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
-    // If an OpenAI API key is configured on the backend, call OpenAI API
-    if (apiKey && apiKey !== 'your_openai_api_key_here') {
-      try {
-        const systemPrompt = `You are the SkillSwap Academic Companion, an empathetic, pedagogically sound AI tutor assisting university students.
+    // If no API key is configured, return a clear setup error rather than silently falling back
+    if (!apiKey || apiKey === 'your_openai_api_key_here') {
+      return res.status(503).json({
+        success: false,
+        error: 'AI service is not configured. Please set the OPENAI_API_KEY environment variable on the server.',
+        setupRequired: true
+      });
+    }
+
+    // Call OpenAI API
+    try {
+      const systemPrompt = `You are the SkillSwap Academic Companion, an empathetic, pedagogically sound AI tutor assisting university students.
 Context topic: ${contextTopic || 'General Academic'}.
 ${notesContext ? `Active session notes: ${notesContext}` : ''}
 Guide students with clear step-by-step reasoning, practical examples, and relevant code. Never give harmful or non-educational advice.`;
 
-        const openAiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: message }
-            ],
-            temperature: 0.7,
-            max_tokens: 800
-          })
+      const openAiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: message }
+          ],
+          temperature: 0.7,
+          max_tokens: 800
+        })
+      });
+
+      const data = await openAiRes.json();
+      if (data.choices && data.choices[0]) {
+        return res.json({
+          success: true,
+          reply: data.choices[0].message.content,
+          modelUsed: model,
+          topicAllowed: true
         });
-
-        const data = await openAiRes.json();
-        if (data.choices && data.choices[0]) {
-          return res.json({
-            success: true,
-            reply: data.choices[0].message.content,
-            modelUsed: model,
-            topicAllowed: true
-          });
-        }
-      } catch (apiErr) {
-        console.warn('OpenAI API request failed, falling back to local academic engine:', apiErr.message);
       }
+      // OpenAI returned no choices — surface a clear error
+      return res.status(502).json({
+        success: false,
+        error: 'AI provider returned an unexpected response. Please try again.',
+        raw: data.error || null
+      });
+    } catch (apiErr) {
+      console.error('OpenAI API request failed:', apiErr.message);
+      return res.status(502).json({
+        success: false,
+        error: 'AI provider is temporarily unavailable. Please try again later.'
+      });
     }
-
-    // High-quality local academic response fallback
-    let fallbackReply = `Here is a study breakdown for **"${contextTopic || 'this topic'}"** regarding your question:\n\n` +
-      `1. **Core Concept:** When working with ${contextTopic || 'academic concepts'}, ensure you isolate the fundamental invariants before optimizing.\n` +
-      `2. **Key Principle:** Practice by creating a minimal reproducible demo or proof.\n` +
-      `3. **Recommended Next Step:** Schedule a 20-minute peer review with a mentor in your campus community to verify your implementation!`;
-
-    if (message.toLowerCase().includes('dsa') || message.toLowerCase().includes('algorithm') || message.toLowerCase().includes('tree')) {
-      fallbackReply = `### Algorithm & Data Structure Insight\n\n` +
-        `When approaching balanced search structures or graph algorithms:\n` +
-        `- **Time Complexity:** Typically $O(\\log N)$ for tree heights, $O(V + E)$ for traversals.\n` +
-        `- **Edge Cases:** Empty trees, single-node trees, and zigzag rotations (LR/RL).\n` +
-        `- **Code Verification:** Always run trace tables with small sets before scaling up inputs.`;
-    }
-
-    res.json({
-      success: true,
-      reply: fallbackReply,
-      modelUsed: 'skillswap-academic-companion-v1 (demo)',
-      topicAllowed: true
-    });
   } catch (err) {
     console.error('AI chat error:', err);
     res.status(500).json({ success: false, error: 'Internal AI tutor error.' });

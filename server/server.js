@@ -5,6 +5,8 @@ import mongoose from 'mongoose';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import aiRoutes from './routes/ai.js';
+import videoRoutes from './routes/videoRoutes.js';
+import quizRoutes from './routes/quizRoutes.js';
 
 dotenv.config();
 
@@ -34,6 +36,8 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/videos', videoRoutes);
+app.use('/api/quizzes', quizRoutes);
 
 // Centralized Error Handling
 app.use((err, req, res, next) => {

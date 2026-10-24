@@ -9,7 +9,7 @@ const AppContext = createContext();
 export const AppProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [isGuest, setIsGuest] = useState(false);
-  const [tokens, setTokens] = useState(100);
+  const [tokens, setTokens] = useState(0);
   const [activeExperience, setActiveExperience] = useState('connect'); // default to student connect & skillswap
   const [unreadNotifications, setUnreadNotifications] = useState(2);
   const [unreadMessages, setUnreadMessages] = useState(1);

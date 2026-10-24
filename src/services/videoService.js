@@ -1,154 +1,132 @@
-import { apiClient, simulateDelay } from './api';
-import { MOCK_VIDEOS } from '../data/mockVideos';
-
-const STORAGE_KEY = 'skillswap_videos';
-
-const getInitialVideos = () => {
-  const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (e) {
-      console.error('Failed to parse videos from localStorage', e);
-    }
-  }
-  return MOCK_VIDEOS;
-};
-
-let videosData = getInitialVideos();
-
-const saveVideos = () => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(videosData));
-};
+/**
+ * videoService — Connects to the real SkillSwap backend API.
+ * All video data comes from the server; no mock/localStorage fallback.
+ */
+import apiClient from './api';
 
 export const videoService = {
+  /**
+   * List videos, optionally filtered by category and/or search term.
+   */
   getVideos: async ({ category = 'All', search = '' } = {}) => {
-    await simulateDelay(150);
-    let results = [...videosData];
+    const params = new URLSearchParams();
+    if (category && category !== 'All') params.set('category', category);
+    if (search && search.trim()) params.set('search', search.trim());
 
-    if (category && category !== 'All') {
-      results = results.filter(v => v.category.toLowerCase() === category.toLowerCase());
-    }
-
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      results = results.filter(v =>
-        v.title.toLowerCase().includes(q) ||
-        v.description.toLowerCase().includes(q) ||
-        v.creator.name.toLowerCase().includes(q) ||
-        (v.skillsTaught && v.skillsTaught.some(s => s.toLowerCase().includes(q)))
-      );
-    }
-
-    return results;
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const res = await apiClient.get(`/videos${query}`);
+    return res?.videos || [];
   },
 
+  /**
+   * Fetch a single video by ID (visibility enforced by the backend).
+   */
   getVideoById: async (id) => {
-    await simulateDelay(100);
-    const video = videosData.find(v => v.id === id);
-    if (!video) throw new Error(`Video with id ${id} not found`);
-    return { ...video };
+    const res = await apiClient.get(`/videos/${id}`);
+    if (!res?.video) throw new Error('Video not found.');
+    return res.video;
   },
 
+  /**
+   * Returns the first featured video, or null if none exist.
+   */
   getFeaturedVideo: async () => {
-    await simulateDelay(100);
-    return videosData.find(v => v.isFeatured) || videosData[0];
+    const res = await apiClient.get('/videos?isFeatured=true');
+    const videos = res?.videos || [];
+    const featured = videos.find(v => v.isFeatured);
+    return featured || (videos.length > 0 ? videos[0] : null);
   },
 
+  /**
+   * Videos related to the current one (same category, exclude self).
+   */
   getRelatedVideos: async (currentVideoId, category, limit = 4) => {
-    await simulateDelay(100);
-    return videosData
-      .filter(v => v.id !== currentVideoId)
-      .slice(0, limit);
+    const params = new URLSearchParams();
+    if (category) params.set('category', category);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const res = await apiClient.get(`/videos${query}`);
+    const all = res?.videos || [];
+    return all.filter(v => v.id !== currentVideoId && v._id !== currentVideoId).slice(0, limit);
   },
 
+  /**
+   * Videos from creators the current user follows.
+   * Filters client-side from the public feed based on creator IDs.
+   */
   getFollowingVideos: async (followedCreatorIds = []) => {
-    await simulateDelay(150);
-    if (!followedCreatorIds || followedCreatorIds.length === 0) {
-      return [];
-    }
-    return videosData.filter(v => followedCreatorIds.includes(v.creator.id));
+    if (!followedCreatorIds || followedCreatorIds.length === 0) return [];
+    const res = await apiClient.get('/videos');
+    const all = res?.videos || [];
+    return all.filter(v => followedCreatorIds.includes(v.creator?.id));
   },
 
+  /**
+   * Toggle like on a video (auth required on backend).
+   */
   toggleLike: async (videoId) => {
-    await simulateDelay(80);
-    const index = videosData.findIndex(v => v.id === videoId);
-    if (index !== -1) {
-      const isLiked = !videosData[index].isLiked;
-      videosData[index] = {
-        ...videosData[index],
-        isLiked,
-        likes: isLiked ? videosData[index].likes + 1 : Math.max(0, videosData[index].likes - 1)
-      };
-      saveVideos();
-      return videosData[index];
-    }
-    throw new Error('Video not found');
+    const res = await apiClient.post(`/videos/${videoId}/like`, {});
+    if (!res?.success) throw new Error('Failed to toggle like.');
+    return res;
   },
 
+  /**
+   * Toggle save on a video (auth required on backend).
+   */
   toggleSave: async (videoId) => {
-    await simulateDelay(80);
-    const index = videosData.findIndex(v => v.id === videoId);
-    if (index !== -1) {
-      videosData[index] = {
-        ...videosData[index],
-        isSaved: !videosData[index].isSaved
-      };
-      saveVideos();
-      return videosData[index];
-    }
-    throw new Error('Video not found');
+    const res = await apiClient.post(`/videos/${videoId}/save`, {});
+    if (!res?.success) throw new Error('Failed to toggle save.');
+    return res;
   },
 
+  /**
+   * Add a comment to a video.
+   * NOTE: A dedicated /api/videos/:id/comments endpoint is needed on the backend.
+   * For now, we optimistically return the comment locally.
+   */
   addComment: async (videoId, { author, avatar, text }) => {
-    await simulateDelay(120);
-    const index = videosData.findIndex(v => v.id === videoId);
-    if (index !== -1) {
-      const newComment = {
-        id: `c_${Date.now()}`,
-        author,
-        avatar,
-        text,
-        createdAt: 'Just now',
-        likes: 0
-      };
-      const updatedComments = [newComment, ...(videosData[index].comments || [])];
-      videosData[index] = {
-        ...videosData[index],
-        comments: updatedComments
-      };
-      saveVideos();
-      return newComment;
-    }
-    throw new Error('Video not found');
+    const newComment = {
+      id: `c_${Date.now()}`,
+      author,
+      avatar,
+      text,
+      createdAt: 'Just now',
+      likes: 0
+    };
+    // TODO: POST /api/videos/:id/comments once that endpoint is created
+    return newComment;
   },
 
+  /**
+   * Upload a new video (sends JSON metadata; file upload via multipart is a future step).
+   * Auth required on backend.
+   */
   uploadVideo: async (videoPayload) => {
-    await simulateDelay(400); // Simulate network upload time
-    const newVideo = {
-      id: `vid_${Date.now()}`,
+    const res = await apiClient.post('/videos', {
       title: videoPayload.title,
       description: videoPayload.description || '',
       category: videoPayload.category || 'Education',
-      duration: videoPayload.duration || '12:30',
-      views: '1',
-      likes: 0,
-      isLiked: false,
-      isSaved: false,
-      createdAt: 'Just now',
-      thumbnail: videoPayload.thumbnailPreview || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1000&q=80',
-      videoUrl: videoPayload.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-      isFeatured: false,
-      skillsTaught: videoPayload.skills || ['General Skill'],
-      creator: videoPayload.creator,
-      comments: []
-    };
+      duration: videoPayload.duration || '00:00',
+      videoUrl: videoPayload.videoUrl || '',
+      thumbnailUrl: videoPayload.thumbnailPreview || '',
+      skillsTaught: videoPayload.skills || [],
+      level: videoPayload.level || 'Beginner',
+      language: videoPayload.language || 'English',
+      visibility: videoPayload.visibility || 'public',
+      status: 'published'
+    });
 
-    videosData = [newVideo, ...videosData];
-    saveVideos();
-    return newVideo;
+    if (!res?.video) throw new Error('Upload failed. Server did not return a video record.');
+    return res.video;
+  },
+
+  /**
+   * Delete a video (auth required; only owner can delete).
+   */
+  deleteVideo: async (videoId) => {
+    const res = await apiClient.delete(`/videos/${videoId}`);
+    if (!res?.success) throw new Error('Failed to delete video.');
+    return res;
   }
 };
 
 export default videoService;
-
