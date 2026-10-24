@@ -2,17 +2,21 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import aiRoutes from './routes/ai.js';
 import videoRoutes from './routes/videoRoutes.js';
 import quizRoutes from './routes/quizRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/skillswap';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Middlewares
 app.use(cors({
@@ -32,12 +36,16 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Serve uploaded video files as static assets
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
 // Mount Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/videos', videoRoutes);
 app.use('/api/quizzes', quizRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Centralized Error Handling
 app.use((err, req, res, next) => {

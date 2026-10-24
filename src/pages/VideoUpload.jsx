@@ -54,39 +54,56 @@ export const VideoUpload = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim()) { showToast('Please add a title', 'error'); return; }
+    if (!videoFile) { showToast('Please select a video file', 'error'); return; }
 
     setUploading(true);
-    setProgress(0);
-
-    // Simulate upload progress
-    for (let i = 0; i <= 100; i += 2) {
-      await new Promise(r => setTimeout(r, 40));
-      setProgress(i);
-    }
+    setProgress(10);
 
     try {
-      await videoService.uploadVideo({
-        title: title.trim(),
-        description: description.trim(),
-        category,
-        skills: skills.split(',').map(s => s.trim()).filter(Boolean),
-        thumbnailPreview: thumbPreview || undefined,
-        creator: {
-          id: currentUser?.id || 'usr_me',
-          name: currentUser?.name || 'Student Creator',
-          username: currentUser?.username || 'student',
-          avatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80',
-          title: currentUser?.title || 'Student Learner',
-          subscribers: '1.2K',
-          isFollowed: false,
-          rating: 5.0,
-          tokensRate: 40
-        }
+      // Build multipart form data
+      const formData = new FormData();
+      formData.append('video', videoFile);
+      formData.append('title', title.trim());
+      formData.append('description', description.trim());
+      formData.append('category', category);
+      formData.append('skills', skills);
+      formData.append('visibility', visibility);
+      formData.append('level', 'Beginner');
+      formData.append('language', 'English');
+
+      // Use XHR for real upload progress tracking
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const token = localStorage.getItem('skillswap_token');
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            setProgress(Math.round((e.loaded / e.total) * 90));
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status === 201) {
+            setProgress(100);
+            resolve(JSON.parse(xhr.responseText));
+          } else {
+            const errData = JSON.parse(xhr.responseText || '{}');
+            reject(new Error(errData.error || `Upload failed (${xhr.status})`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error during upload.'));
+
+        xhr.open('POST', `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/upload/video`);
+        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.send(formData);
       });
+
       setDone(true);
       showToast('Video uploaded successfully!');
     } catch (err) {
-      showToast('Upload failed', 'error');
+      console.error('Upload error:', err);
+      showToast(err.message || 'Upload failed. Please try again.', 'error');
     } finally {
       setUploading(false);
     }
@@ -203,7 +220,7 @@ export const VideoUpload = () => {
             <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-teal-500 to-teal-400 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 text-center">{progress}% — Processing video...</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 text-center">{progress}% — {progress < 90 ? 'Uploading video...' : 'Processing...'}</p>
           </div>
         )}
 
