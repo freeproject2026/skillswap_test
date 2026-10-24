@@ -14,7 +14,7 @@ import AuthGate from '../components/auth/AuthGate';
 import AuthModal from '../components/auth/AuthModal';
 import { studentProfileService } from '../services/studentProfileService';
 import { proofOfLearningService } from '../services/proofOfLearningService';
-import { MOCK_VIDEOS } from '../data/mockVideos';
+import { videoService } from '../services/videoService';
 
 const PROFILE_TABS = ['Skill Passport', 'Impact Dashboard', 'Proof of Learning', 'My Videos'];
 
@@ -69,7 +69,14 @@ export const ProfilePage = () => {
   }
 
   const completion = studentProfileService.calculateCompletionPercentage(currentUser);
-  const myVideos = MOCK_VIDEOS.filter(v => v.creator?.id === currentUser.id || v.creator?.id === 'usr_me');
+  const [myVideos, setMyVideos] = useState([]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    videoService.getVideos().then(all => {
+      setMyVideos(all.filter(v => v.creator?.id === currentUser.id || v.creator?.id === currentUser._id));
+    }).catch(console.error);
+  }, [currentUser]);
 
   return (
     <div className="max-w-4xl mx-auto pb-24 px-3 sm:px-6 py-4 space-y-6 text-slate-800 dark:text-slate-100 transition-colors">

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Upload, Image, X, Check, AlertTriangle, Film } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { videoService } from '../services/videoService';
-import { CATEGORIES } from '../data/mockVideos';
+import { CATEGORIES } from './VideoHome';
 import { AuthGate } from '../components/auth/AuthGate';
 import { AuthModal } from '../components/auth/AuthModal';
 

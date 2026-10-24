@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, X, Video, Users, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { MOCK_VIDEOS } from '../data/mockVideos';
+import { videoService } from '../services/videoService';
 import { MOCK_USERS } from '../data/mockUsers';
 
 export const SearchOverlay = () => {
@@ -19,28 +19,31 @@ export const SearchOverlay = () => {
     }
   }, [searchOpen]);
 
-  useEffect(() => {
-    if (!searchQuery.trim()) {
+  // Search real API for videos, mock for people (until people API is wired)
+  const runSearch = useCallback(async (q) => {
+    if (!q.trim()) {
       setResults({ videos: [], people: [] });
       return;
     }
-    const q = searchQuery.toLowerCase();
-    const matchedVideos = MOCK_VIDEOS.filter(v =>
-      v.title.toLowerCase().includes(q) ||
-      v.creator.name.toLowerCase().includes(q) ||
-      v.category.toLowerCase().includes(q) ||
-      (v.skillsTaught && v.skillsTaught.some(s => s.toLowerCase().includes(q)))
-    ).slice(0, 5);
+    try {
+      const videos = await videoService.getVideos({ search: q });
+      const lq = q.toLowerCase();
+      const matchedPeople = MOCK_USERS.filter(u =>
+        u.name.toLowerCase().includes(lq) ||
+        u.username.toLowerCase().includes(lq) ||
+        u.skillsOffered.some(s => s.name.toLowerCase().includes(lq)) ||
+        u.skillsWanted.some(s => s.name.toLowerCase().includes(lq))
+      ).slice(0, 5);
+      setResults({ videos: videos.slice(0, 5), people: matchedPeople });
+    } catch (err) {
+      console.error('Search error:', err);
+    }
+  }, []);
 
-    const matchedPeople = MOCK_USERS.filter(u =>
-      u.name.toLowerCase().includes(q) ||
-      u.username.toLowerCase().includes(q) ||
-      u.skillsOffered.some(s => s.name.toLowerCase().includes(q)) ||
-      u.skillsWanted.some(s => s.name.toLowerCase().includes(q))
-    ).slice(0, 5);
-
-    setResults({ videos: matchedVideos, people: matchedPeople });
-  }, [searchQuery]);
+  useEffect(() => {
+    const timer = setTimeout(() => runSearch(searchQuery), 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, runSearch]);
 
   useEffect(() => {
     const handleKey = (e) => {
