@@ -103,7 +103,7 @@ export const WalletPage = () => {
                 </span>
               </div>
               <p className="text-4xl font-extrabold text-white mb-1">
-                {walletSummary?.balances?.availableCredits || 150}
+                {walletSummary?.balances?.availableCredits ?? 0}
               </p>
               <p className="text-xs text-slate-300">Available Skill-Exchange Balance</p>
             </div>
@@ -115,7 +115,7 @@ export const WalletPage = () => {
                 Reserved in Escrow:
               </span>
               <strong className="text-amber-300 font-bold">
-                {walletSummary?.balances?.reservedCredits || 60} Credits
+                {walletSummary?.balances?.reservedCredits ?? 0} Credits
               </strong>
             </div>
           </div>
@@ -130,18 +130,18 @@ export const WalletPage = () => {
                   <Coins className="w-3.5 h-3.5" /> Paid Tutoring Tokens
                 </span>
                 <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[10px] font-bold">
-                  Demo Grant
+                  Peer Balance
                 </span>
               </div>
               <p className="text-4xl font-extrabold text-amber-300 mb-1">
-                {walletSummary?.balances?.paidTokens || 100}
+                {walletSummary?.balances?.paidTokens ?? 0}
               </p>
               <p className="text-xs text-slate-400">Reserved for compensated student tutoring</p>
             </div>
 
             <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs">
               <span className="text-slate-400">Total Tokens Earned:</span>
-              <strong className="text-emerald-400">{walletSummary?.totalEarnedTokens || 420}</strong>
+              <strong className="text-emerald-400">{walletSummary?.totalEarnedTokens ?? 0}</strong>
             </div>
           </div>
         </div>

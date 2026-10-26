@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Sparkles, Plus, Search, Filter, Clock, GraduationCap, CheckCircle,
   MessageSquare, UserPlus, X, Send, ArrowRight
@@ -11,12 +11,17 @@ import { AuthModal } from '../components/auth/AuthModal';
 
 export const LearningRequestsPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { showToast, currentUser, isGuest, setAuthModalOpen } = useApp();
 
+  const initialTopic = (searchParams.get('topic') || searchParams.get('skill') || searchParams.get('hashtag') || '').replace(/^#/, '').trim();
+  const initialCategory = searchParams.get('category') || 'All Categories';
+  const initialSearch = searchParams.get('search') || initialTopic;
+
   const [requests, setRequests] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedFormat, setSelectedFormat] = useState('All');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(initialSearch);
   const [loading, setLoading] = useState(true);
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [respondModalRequest, setRespondModalRequest] = useState(null);
@@ -84,10 +89,10 @@ export const LearningRequestsPage = () => {
     try {
       await learningRequestService.createRequest({
         ...newRequest,
-        authorId: currentUser?.id || 'usr_me',
-        authorName: currentUser?.name || 'Alex Rivera',
+        authorId: currentUser?.id || currentUser?._id,
+        authorName: currentUser?.name || 'Student',
         authorAvatar: currentUser?.avatar || '',
-        college: currentUser?.college || 'UC Berkeley'
+        college: currentUser?.college || 'University'
       });
       showToast('Learning request posted to campus board!');
       setCreateModalOpen(false);
@@ -117,8 +122,8 @@ export const LearningRequestsPage = () => {
     if (!responseMessage.trim() || !respondModalRequest) return;
     try {
       await learningRequestService.respondToRequest(respondModalRequest.id, {
-        responderId: currentUser?.id || 'usr_me',
-        responderName: currentUser?.name || 'Alex Rivera',
+        responderId: currentUser?.id || currentUser?._id,
+        responderName: currentUser?.name || 'Student',
         responderAvatar: currentUser?.avatar || '',
         message: responseMessage.trim()
       });
@@ -272,7 +277,7 @@ export const LearningRequestsPage = () => {
                           <span className="font-bold text-slate-800 dark:text-slate-100">{resp.responderName}:</span>{' '}
                           <span className="text-slate-600 dark:text-slate-300 italic">"{resp.message}"</span>
                         </div>
-                        {req.authorId === 'usr_me' && resp.status === 'Pending' && (
+                        {(req.authorId === (currentUser?.id || currentUser?._id) || req.authorId === 'usr_me') && resp.status === 'Pending' && (
                           <button
                             onClick={() => handleAcceptResponse(req.id, resp.id)}
                             className="px-2.5 py-1 rounded bg-teal-600 text-white text-[10px] font-bold hover:bg-teal-700 shrink-0"
@@ -288,7 +293,7 @@ export const LearningRequestsPage = () => {
 
               {/* Action */}
               <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex justify-end">
-                {req.authorId !== 'usr_me' && req.status !== 'Accepted' ? (
+                {req.authorId !== (currentUser?.id || currentUser?._id) && req.status !== 'Accepted' ? (
                   <button
                     onClick={() => handleRespondClick(req)}
                     className="flex items-center gap-1 px-4 py-2 rounded-xl bg-slate-900 dark:bg-slate-800 text-white text-xs font-bold hover:bg-slate-800 dark:hover:bg-slate-700 shadow-xs transition-colors"

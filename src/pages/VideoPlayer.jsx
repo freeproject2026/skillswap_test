@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Heart, Bookmark, Share2, Play, MessageCircle, ChevronDown, ChevronUp, Send, Eye, Clock, ArrowLeft, UserPlus, Check } from 'lucide-react';
+import {
+  Heart, Bookmark, Share2, Play, MessageCircle, ChevronDown, ChevronUp,
+  Send, Eye, Clock, ArrowLeft, UserPlus, Check, Star, Lock
+} from 'lucide-react';
 import VideoCard from '../components/VideoCard';
 import { videoService } from '../services/videoService';
 import { useApp } from '../context/AppContext';
@@ -21,6 +24,17 @@ export const VideoPlayer = () => {
   const [comments, setComments] = useState([]);
   const commentsRef = useRef(null);
 
+  // Playback progress & rating states
+  const videoRef = useRef(null);
+  const lastReportedTimeRef = useRef(0);
+  const lastReportedAtRef = useRef(0);
+  const [watchProgress, setWatchProgress] = useState(0);
+  const [eligibleToRate, setEligibleToRate] = useState(false);
+  const [userRating, setUserRating] = useState(null);
+  const [videoRating, setVideoRating] = useState(0);
+  const [videoRatingCount, setVideoRatingCount] = useState(0);
+  const [isRatingSubmitting, setIsRatingSubmitting] = useState(false);
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -31,8 +45,24 @@ export const VideoPlayer = () => {
         setSaved(v.isSaved);
         setLikeCount(v.likes);
         setComments(v.comments || []);
+        setVideoRating(v.rating || 0);
+        setVideoRatingCount(v.ratingCount || 0);
+        if (v.userRating) setUserRating(v.userRating);
+
         const rel = await videoService.getRelatedVideos(id, v.category);
         setRelated(rel);
+
+        // Fetch verified watch progress from backend
+        try {
+          const prog = await videoService.getWatchProgress(id);
+          if (prog?.success) {
+            setWatchProgress(prog.progressPercentage || 0);
+            setEligibleToRate(prog.eligibleToRate || false);
+            if (prog.userRating) setUserRating(prog.userRating);
+          }
+        } catch (progErr) {
+          console.warn('Watch progress load error:', progErr);
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -42,6 +72,69 @@ export const VideoPlayer = () => {
     load();
     window.scrollTo(0, 0);
   }, [id]);
+
+  const handleTimeUpdate = (e) => {
+    const currentTime = e.target.currentTime;
+    const duration = e.target.duration;
+    if (!duration || isNaN(duration) || duration <= 0) return;
+
+    const currentPercent = (currentTime / duration) * 100;
+    setWatchProgress(prev => {
+      const updated = Math.max(prev, currentPercent);
+      if (updated > 60) setEligibleToRate(true);
+      return updated;
+    });
+
+    const now = Date.now();
+    if (now - lastReportedAtRef.current > 3500 && Math.abs(currentTime - lastReportedTimeRef.current) >= 1) {
+      handlePlaybackSync();
+    }
+  };
+
+  const handlePlaybackSync = async () => {
+    if (!videoRef.current || isGuest || !currentUser) return;
+    const currentTime = videoRef.current.currentTime;
+    const duration = videoRef.current.duration;
+    if (!duration || isNaN(duration) || duration <= 0) return;
+
+    lastReportedAtRef.current = Date.now();
+    lastReportedTimeRef.current = currentTime;
+
+    try {
+      const res = await videoService.recordWatchProgress(id, { currentTime, duration });
+      if (res?.success) {
+        setWatchProgress(res.progressPercentage);
+        setEligibleToRate(res.eligibleToRate);
+      }
+    } catch (err) {
+      console.warn('Playback sync error:', err.message);
+    }
+  };
+
+  const handleRate = async (score) => {
+    if (isGuest || !currentUser) {
+      setAuthModalOpen(true);
+      return;
+    }
+    if (!eligibleToRate && watchProgress <= 60) {
+      showToast('Watch more than 60% of this video to rate it.', 'error');
+      return;
+    }
+    setIsRatingSubmitting(true);
+    try {
+      const res = await videoService.rateVideo(id, score);
+      if (res?.success) {
+        setUserRating(res.userRating);
+        setVideoRating(res.rating);
+        setVideoRatingCount(res.ratingCount);
+        showToast('Rating submitted successfully!', 'success');
+      }
+    } catch (err) {
+      showToast(err.message || 'Failed to submit rating.', 'error');
+    } finally {
+      setIsRatingSubmitting(false);
+    }
+  };
 
   const handleLike = async () => {
     if (isGuest || !currentUser) {
@@ -114,7 +207,8 @@ export const VideoPlayer = () => {
     );
   }
 
-  const isFollowing = followingIds.includes(video.creator.id);
+  const creatorId = video.creator?.id || video.creator?._id;
+  const isFollowing = creatorId ? followingIds.includes(creatorId) : false;
 
   return (
     <div className="max-w-5xl mx-auto pb-24">
@@ -128,11 +222,15 @@ export const VideoPlayer = () => {
       {/* Video Player */}
       <div className="w-full aspect-video bg-black rounded-none sm:rounded-2xl overflow-hidden sm:mx-6 sm:max-w-[calc(100%-3rem)] shadow-lg">
         <video
+          ref={videoRef}
           src={video.videoUrl}
           poster={video.thumbnail}
           controls
           className="w-full h-full object-contain"
           autoPlay={false}
+          onTimeUpdate={handleTimeUpdate}
+          onPause={handlePlaybackSync}
+          onEnded={handlePlaybackSync}
         />
       </div>
 
@@ -142,16 +240,32 @@ export const VideoPlayer = () => {
         <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500 dark:text-slate-400">
           <span className="flex items-center gap-1"><Eye className="w-3.5 h-3.5" />{video.views} views</span>
           <span>·</span>
+          <span className="flex items-center gap-1 text-amber-500 font-semibold">
+            <Star className="w-3.5 h-3.5 fill-amber-500" />
+            {videoRating > 0 ? `${videoRating.toFixed(1)}/5` : 'No ratings yet'}
+            {videoRatingCount > 0 ? ` (${videoRatingCount})` : ''}
+          </span>
+          <span>·</span>
           <span>{video.createdAt}</span>
           <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-medium">{video.category}</span>
         </div>
 
-        {/* Skills Taught Tags */}
-        {video.skillsTaught && (
+        {/* Skills Taught Hashtags / Topics */}
+        {video.skillsTaught && video.skillsTaught.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-3">
-            {video.skillsTaught.map((s, i) => (
-              <span key={i} className="px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 text-[11px] font-medium border border-teal-100 dark:border-teal-800/60">{s}</span>
-            ))}
+            {video.skillsTaught.map((s, i) => {
+              const cleanTag = s.replace(/^#/, '').trim();
+              return (
+                <button
+                  key={i}
+                  onClick={() => navigate(`/videos?topic=${encodeURIComponent(cleanTag)}`)}
+                  className="px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 text-[11px] font-medium border border-teal-100 dark:border-teal-800/60 hover:bg-teal-100 dark:hover:bg-teal-900/60 hover:border-teal-300 dark:hover:border-teal-600 transition-all cursor-pointer shadow-2xs"
+                  title={`View videos on #${cleanTag}`}
+                >
+                  #{cleanTag}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -170,6 +284,83 @@ export const VideoPlayer = () => {
           </button>
         </div>
 
+        {/* Video Rating Eligibility & Submission Section */}
+        <div className="mt-4 p-4 rounded-2xl bg-white dark:bg-slate-850 border border-slate-200/80 dark:border-slate-800 shadow-xs space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                Video Rating:
+              </span>
+              <span className="text-sm font-extrabold text-slate-900 dark:text-white">
+                {videoRating > 0 ? `${videoRating.toFixed(1)} / 5.0` : 'No ratings yet'}
+              </span>
+              {videoRatingCount > 0 && (
+                <span className="text-xs text-slate-400">({videoRatingCount} review{videoRatingCount === 1 ? '' : 's'})</span>
+              )}
+            </div>
+
+            {userRating && (
+              <span className="text-xs font-bold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-2.5 py-1 rounded-lg border border-teal-200 dark:border-teal-800/40">
+                Your rating: ★ {userRating}/5
+              </span>
+            )}
+          </div>
+
+          {/* Eligibility state & Star controls */}
+          {eligibleToRate ? (
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 animate-fade-in">
+              <div>
+                <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  {userRating ? 'Update your rating:' : 'Rate this video tutorial:'}
+                </p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Verified: you watched over 60% of this video. Share your peer rating!
+                </p>
+              </div>
+
+              <div className="flex items-center gap-1">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    disabled={isRatingSubmitting}
+                    onClick={() => handleRate(star)}
+                    className="p-1 text-slate-300 dark:text-slate-600 hover:text-amber-500 hover:scale-110 transition-all focus:outline-none disabled:opacity-50"
+                    title={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                  >
+                    <Star
+                      className={`w-6 h-6 transition-colors ${
+                        (userRating || 0) >= star
+                          ? 'text-amber-500 fill-amber-500'
+                          : 'hover:fill-amber-400 text-slate-300 dark:text-slate-600'
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <Lock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="font-medium">Watch more than 60% of this video to rate it.</span>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs shrink-0">
+                <div className="w-24 sm:w-32 h-1.5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                  <div
+                    className="h-full bg-teal-500 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.min(100, (watchProgress / 60) * 100)}%` }}
+                  />
+                </div>
+                <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 font-semibold">
+                  {Math.min(100, Math.floor(watchProgress))}% / 60%
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Creator Info */}
         <div className="flex items-center justify-between gap-3 py-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3 min-w-0">
@@ -179,7 +370,7 @@ export const VideoPlayer = () => {
               <p className="text-xs text-slate-500 dark:text-slate-400">{video.creator.subscribers} subscribers</p>
             </div>
           </div>
-          {video.creator.id !== 'usr_me' && (
+          {video.creator.id !== (currentUser?.id || currentUser?._id) && (
             <button
               onClick={handleFollowClick}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all ${

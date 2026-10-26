@@ -7,7 +7,7 @@ export const HeroBanner = () => {
   const navigate = useNavigate();
   const { currentUser } = useApp();
 
-  const firstName = currentUser?.name?.split(' ')[0] || 'Alex';
+  const firstName = currentUser?.name?.split(' ')[0] || 'Student';
 
   return (
     <div className="relative rounded-3xl bg-gradient-to-br from-[#0c1834] via-[#14234b] to-[#1a1c3d] p-6 sm:p-8 lg:p-10 text-white overflow-hidden shadow-xl border border-slate-700/50">
@@ -86,8 +86,8 @@ export const HeroBanner = () => {
                       className="w-7 h-7 rounded-full object-cover ring-1 ring-teal-400"
                     />
                     <div className="text-left">
-                      <p className="text-[11px] font-bold text-white leading-tight">Alex (You)</p>
-                      <p className="text-[10px] text-teal-300 font-mono">React.js & CSS</p>
+                      <p className="text-[11px] font-bold text-white leading-tight">{currentUser?.name ? `${currentUser.name} (You)` : 'You (Teaching)'}</p>
+                      <p className="text-[10px] text-teal-300 font-mono">{currentUser?.skillsOffered?.[0]?.name || 'Your Skills'}</p>
                     </div>
                   </div>
                   <div className="mt-2 text-[10px] bg-slate-800/80 px-2 py-1 rounded text-slate-300 flex items-center gap-1">

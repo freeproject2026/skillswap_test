@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, Bell, Video, Users, User, Sun, Moon, LogOut, Home, Lock } from 'lucide-react';
 import Logo from './Logo';
 import TokenBalance from './TokenBalance';
+import DatabaseStatusPill from './DatabaseStatusPill';
 import { useApp } from '../context/AppContext';
 
 export const Header = () => {
@@ -47,6 +48,9 @@ export const Header = () => {
 
           {/* User's Token Balance */}
           <TokenBalance />
+
+          {/* Real Database Connection Health */}
+          <DatabaseStatusPill />
         </div>
 
         {/* CENTER (Desktop/Tablet): Quick Mode Switcher */}

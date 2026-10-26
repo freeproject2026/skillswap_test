@@ -1,9 +1,24 @@
-import { simulateDelay } from './api';
-import { MOCK_USERS, CURRENT_USER } from '../data/mockUsers';
+import { userService } from './userService';
 
 export const skillMatchingService = {
-  getRankedMatches: async (user = CURRENT_USER, candidateUsers = MOCK_USERS) => {
-    await simulateDelay(120);
+  getRankedMatches: async (user, candidateUsers = null) => {
+    let candidates = candidateUsers;
+    if (!candidates) {
+      candidates = await userService.getAllUsers();
+    }
+
+    if (!user) {
+      return candidates.map(c => ({
+        ...c,
+        matchScore: 50,
+        rationale: 'Active campus student on SkillSwap.',
+        isMutualMatch: false
+      }));
+    }
+
+    const currentUserId = user.id || user._id;
+    // Exclude current user from candidate list
+    const eligibleCandidates = candidates.filter(c => (c.id || c._id) !== currentUserId);
 
     const wantedSkills = (user.skillsWanted || []).map(s => ({
       name: s.name.toLowerCase(),
@@ -15,7 +30,7 @@ export const skillMatchingService = {
     const userDays = new Set(user.availableDays || []);
     const userLanguages = (user.languages || []).map(l => l.split(' ')[0].toLowerCase());
 
-    const scoredCandidates = candidateUsers.map(candidate => {
+    const scoredCandidates = eligibleCandidates.map(candidate => {
       let score = 0;
       const reasons = [];
 
@@ -64,15 +79,10 @@ export const skillMatchingService = {
         reasons.push(`fluent in ${candidate.languages[0].split(' ')[0]}`);
       }
 
-      // 5. High Teaching Rating
-      if (candidate.teachingRating >= 4.9) {
+      // 5. Teaching Rating
+      if (candidate.teachingRating >= 4.8) {
         score += 10;
         reasons.push(`stellar ${candidate.teachingRating}★ teaching feedback`);
-      }
-
-      // 6. Credit Affordability
-      if (candidate.creditsRate && candidate.creditsRate <= user.credits) {
-        score += 5;
       }
 
       // Construct transparent human explanation sentence

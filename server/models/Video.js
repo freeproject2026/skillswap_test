@@ -31,6 +31,13 @@ const VideoSchema = new mongoose.Schema({
   likes: { type: Number, default: 0 },
   likedBy: [{ type: String }],
   savedBy: [{ type: String }],
+  rating: { type: Number, default: 0 },
+  ratingCount: { type: Number, default: 0 },
+  ratings: [{
+    userId: { type: String, required: true },
+    rating: { type: Number, required: true, min: 1, max: 5 },
+    createdAt: { type: Date, default: Date.now }
+  }],
   isFeatured: { type: Boolean, default: false },
   creator: {
     id: { type: String, required: true },
@@ -49,6 +56,11 @@ VideoSchema.methods.toSafeObject = function(currentUserId = null) {
   obj.id = obj._id ? obj._id.toString() : obj.id;
   obj.isLiked = currentUserId ? (obj.likedBy || []).includes(currentUserId) : false;
   obj.isSaved = currentUserId ? (obj.savedBy || []).includes(currentUserId) : false;
+  obj.rating = this.rating || 0;
+  obj.ratingCount = this.ratingCount || (this.ratings ? this.ratings.length : 0);
+  obj.userRating = currentUserId && this.ratings
+    ? (this.ratings.find(r => String(r.userId) === String(currentUserId))?.rating || null)
+    : null;
   delete obj.__v;
   return obj;
 };

@@ -2,30 +2,66 @@
 import express from 'express';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
 import { listVideos, findVideoById, createVideo, updateVideo, deleteVideo } from '../data/store.js';
+import { Video } from '../models/Video.js';
+import { User } from '../models/User.js';
 
 const router = express.Router();
 
-// GET /api/videos?category=...&search=...
+// GET /api/videos?category=...&search=...&topic=...&hashtag=...
 router.get('/', optionalAuth, async (req, res) => {
   try {
-    const { category, search } = req.query;
-    const videos = await listVideos({ category, search });
-    // Attach user‑specific flags (liked/saved) if user is present
-    const currentUserId = req.user?.id;
-    const safeVideos = videos.map(v => {
-      if (typeof v.toObject === 'function') {
-        // Mongoose doc
-        return v.toSafeObject ? v.toSafeObject(currentUserId) : v.toObject();
+    const { category, search, topic, hashtag } = req.query;
+    const videos = await listVideos({ category, search, topic: topic || hashtag });
+    const userId = req.user?.id;
+
+    // Only return public videos, plus videos this user may access.
+    const visibleVideos = videos.filter((video) => {
+      const visibility = video.visibility || 'public';
+      const ownerId = video.creator?.id
+        ? String(video.creator.id)
+        : '';
+      const viewerId = userId ? String(userId) : '';
+
+      if (visibility === 'public') return true;
+      if (!viewerId) return false;
+      if (ownerId && ownerId === viewerId) return true;
+
+      if (visibility === 'selected') {
+        return (video.allowedStudentIds || []).some(
+          (id) => String(id) === viewerId
+        );
       }
-      // In‑memory plain object
-      const isLiked = currentUserId ? (v.likedBy || []).includes(currentUserId) : false;
-      const isSaved = currentUserId ? (v.savedBy || []).includes(currentUserId) : false;
-      return { ...v, isLiked, isSaved };
+
+      // Exchange videos stay hidden until a real exchange
+      // authorization check is implemented.
+      return false;
     });
+
+    const safeVideos = visibleVideos.map((video) => {
+      if (typeof video.toObject === 'function') {
+        return video.toSafeObject
+          ? video.toSafeObject(userId)
+          : video.toObject();
+      }
+
+      return {
+        ...video,
+        isLiked: userId
+          ? (video.likedBy || []).some((id) => String(id) === String(userId))
+          : false,
+        isSaved: userId
+          ? (video.savedBy || []).some((id) => String(id) === String(userId))
+          : false
+      };
+    });
+
     res.json({ success: true, videos: safeVideos });
   } catch (err) {
     console.error('List videos error:', err);
-    res.status(500).json({ success: false, error: 'Failed to fetch videos.' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch videos.'
+    });
   }
 });
 
@@ -100,8 +136,6 @@ router.patch('/:id', requireAuth, async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to update video.' });
   }
 });
-
-// DELETE /api/videos/:id – delete (owner only)
 // POST /api/videos/:id/like – toggle like (auth required)
 router.post('/:id/like', requireAuth, async (req, res) => {
   try {
@@ -152,6 +186,40 @@ router.post('/:id/save', requireAuth, async (req, res) => {
   }
 });
 
+// POST /api/videos/:id/comments – add comment (auth required)
+router.post('/:id/comments', requireAuth, async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text || !text.trim()) {
+      return res.status(400).json({ success: false, error: 'Comment text cannot be empty.' });
+    }
+    const video = await findVideoById(req.params.id);
+    if (!video) return res.status(404).json({ success: false, error: 'Video not found.' });
+
+    const newComment = {
+      id: `c_${Date.now()}`,
+      authorId: req.user.id,
+      author: req.user.name,
+      avatar: req.user.avatar || '',
+      text: text.trim(),
+      likes: 0,
+      createdAt: new Date()
+    };
+
+    video.comments = video.comments || [];
+    video.comments.push(newComment);
+    await video.save();
+
+    res.status(201).json({
+      success: true,
+      comment: newComment
+    });
+  } catch (err) {
+    console.error('Add comment error:', err);
+    res.status(500).json({ success: false, error: 'Failed to post comment.' });
+  }
+});
+
 // DELETE /api/videos/:id – delete (owner only)
 router.delete('/:id', requireAuth, async (req, res) => {
   try {
@@ -165,6 +233,206 @@ router.delete('/:id', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Delete video error:', err);
     res.status(500).json({ success: false, error: 'Failed to delete video.' });
+  }
+});
+
+/**
+ * GET /api/videos/:id/watch-progress
+ * Returns verified watch progress for the authenticated user and rating eligibility
+ */
+router.get('/:id/watch-progress', optionalAuth, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.json({
+        success: true,
+        progressPercentage: 0,
+        maxWatchedSeconds: 0,
+        eligibleToRate: false,
+        userRating: null
+      });
+    }
+
+    const video = await findVideoById(req.params.id);
+    if (!video) return res.status(404).json({ success: false, error: 'Video not found.' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, error: 'User not found.' });
+
+    const videoIdStr = String(video._id || video.id);
+    const historyItem = (user.watchHistory || []).find(w => String(w.videoId) === videoIdStr);
+
+    const progressPercentage = historyItem ? (historyItem.progressPercentage || 0) : 0;
+    const maxWatchedSeconds = historyItem ? (historyItem.maxWatchedSeconds || 0) : 0;
+    const eligibleToRate = progressPercentage > 60; // strictly > 60%
+
+    const existingRating = (video.ratings || []).find(r => String(r.userId) === String(userId))?.rating || null;
+
+    res.json({
+      success: true,
+      progressPercentage,
+      maxWatchedSeconds,
+      eligibleToRate,
+      userRating: existingRating
+    });
+  } catch (err) {
+    console.error('Get watch progress error:', err);
+    res.status(500).json({ success: false, error: 'Failed to retrieve watch progress.' });
+  }
+});
+
+/**
+ * POST /api/videos/:id/watch-progress
+ * Records verified playback progress and updates authenticated user's watch time
+ */
+router.post('/:id/watch-progress', requireAuth, async (req, res) => {
+  try {
+    const { currentTime, duration } = req.body;
+    const parsedCurrentTime = Number(currentTime);
+    const parsedDuration = Number(duration);
+
+    if (isNaN(parsedCurrentTime) || isNaN(parsedDuration) || parsedDuration <= 0 || parsedCurrentTime < 0) {
+      return res.status(400).json({ success: false, error: 'Invalid playback parameters.' });
+    }
+
+    const video = await findVideoById(req.params.id);
+    if (!video) return res.status(404).json({ success: false, error: 'Video not found.' });
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, error: 'User not found.' });
+
+    const videoIdStr = String(video._id || video.id);
+    user.watchHistory = user.watchHistory || [];
+    let historyItem = user.watchHistory.find(w => String(w.videoId) === videoIdStr);
+
+    const boundedCurrentTime = Math.min(parsedCurrentTime, parsedDuration);
+    let oldMax = 0;
+
+    if (historyItem) {
+      oldMax = historyItem.maxWatchedSeconds || 0;
+    } else {
+      historyItem = {
+        videoId: videoIdStr,
+        watchedSeconds: 0,
+        maxWatchedSeconds: 0,
+        durationSeconds: parsedDuration,
+        progressPercentage: 0,
+        lastWatchedAt: new Date()
+      };
+      user.watchHistory.push(historyItem);
+    }
+
+    // Only progress forward monotonically (avoid duplicate counting on seek/replay)
+    const newMax = Math.max(oldMax, boundedCurrentTime);
+    // Reasonable delta cap to prevent arbitrary watch-time jumps (e.g. max 30s per update ping)
+    const rawDelta = Math.max(0, newMax - oldMax);
+    const deltaSeconds = Math.min(rawDelta, 30);
+
+    historyItem.maxWatchedSeconds = Number(newMax.toFixed(1));
+    historyItem.watchedSeconds = (historyItem.watchedSeconds || 0) + deltaSeconds;
+    historyItem.durationSeconds = parsedDuration;
+    const progressPercentage = Number(((newMax / parsedDuration) * 100).toFixed(1));
+    historyItem.progressPercentage = progressPercentage;
+    historyItem.lastWatchedAt = new Date();
+
+    // Persist user's total watch time
+    user.watchTimeSeconds = (user.watchTimeSeconds || 0) + deltaSeconds;
+    user.watchTimeMinutes = Math.floor(user.watchTimeSeconds / 60);
+    user.hoursLearned = Number((user.watchTimeMinutes / 60).toFixed(1));
+
+    user.markModified('watchHistory');
+    await user.save();
+
+    const eligibleToRate = progressPercentage > 60; // strictly > 60%
+
+    res.json({
+      success: true,
+      progressPercentage,
+      maxWatchedSeconds: newMax,
+      duration: parsedDuration,
+      eligibleToRate,
+      watchTimeMinutes: user.watchTimeMinutes,
+      watchTimeSeconds: user.watchTimeSeconds,
+      hoursLearned: user.hoursLearned
+    });
+  } catch (err) {
+    console.error('Update watch progress error:', err);
+    res.status(500).json({ success: false, error: 'Failed to record watch progress.' });
+  }
+});
+
+/**
+ * POST /api/videos/:id/rate
+ * Allows video rating ONLY after more than 60% is watched
+ */
+router.post('/:id/rate', requireAuth, async (req, res) => {
+  try {
+    const { rating } = req.body;
+    const numericRating = Number(rating);
+
+    if (isNaN(numericRating) || numericRating < 1 || numericRating > 5) {
+      return res.status(400).json({ success: false, error: 'Rating must be a number between 1 and 5.' });
+    }
+
+    const video = await Video.findById(req.params.id);
+    if (!video) return res.status(404).json({ success: false, error: 'Video not found.' });
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, error: 'User not found.' });
+
+    const videoIdStr = String(video._id);
+    const historyItem = (user.watchHistory || []).find(w => String(w.videoId) === videoIdStr);
+
+    if (!historyItem || !historyItem.durationSeconds || historyItem.durationSeconds <= 0) {
+      return res.status(403).json({
+        success: false,
+        error: 'Watch more than 60% of this video to rate it.',
+        progressPercentage: 0,
+        requiredPercentage: 60
+      });
+    }
+
+    const progressPercentage = (historyItem.maxWatchedSeconds / historyItem.durationSeconds) * 100;
+
+    // STRICT CHECK: exactly 60% is not sufficient; must be strictly greater than 60%
+    if (progressPercentage <= 60) {
+      return res.status(403).json({
+        success: false,
+        error: 'Watch more than 60% of this video to rate it.',
+        progressPercentage: Number(progressPercentage.toFixed(1)),
+        requiredPercentage: 60
+      });
+    }
+
+    // Record rating on the Video document
+    video.ratings = video.ratings || [];
+    const existingIndex = video.ratings.findIndex(r => String(r.userId) === String(req.user.id));
+    if (existingIndex >= 0) {
+      video.ratings[existingIndex].rating = numericRating;
+      video.ratings[existingIndex].createdAt = new Date();
+    } else {
+      video.ratings.push({
+        userId: String(req.user.id),
+        rating: numericRating,
+        createdAt: new Date()
+      });
+    }
+
+    video.ratingCount = video.ratings.length;
+    const totalScore = video.ratings.reduce((acc, r) => acc + r.rating, 0);
+    video.rating = Number((totalScore / video.ratingCount).toFixed(1));
+    await video.save();
+
+    res.json({
+      success: true,
+      message: 'Rating submitted successfully!',
+      rating: video.rating,
+      ratingCount: video.ratingCount,
+      userRating: numericRating
+    });
+  } catch (err) {
+    console.error('Rate video error:', err);
+    res.status(500).json({ success: false, error: 'Failed to record rating.' });
   }
 });
 

@@ -26,7 +26,7 @@ const generateToken = (user) => {
  */
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, college, branch } = req.body;
+    const { name, email, password, college, branch, year, semester, skillsOffered, skillsWanted, bio, languages, interests } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -50,12 +50,29 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    const formattedSkillsOffered = Array.isArray(skillsOffered)
+      ? skillsOffered.map(s => (typeof s === 'string'
+          ? { name: s, level: 'Intermediate', evidenceStatus: 'Self-Declared' }
+          : { ...s, level: s.level || 'Intermediate', evidenceStatus: s.evidenceStatus || 'Self-Declared' }))
+      : [];
+
+    const formattedSkillsWanted = Array.isArray(skillsWanted)
+      ? skillsWanted.map(s => (typeof s === 'string' ? { name: s, targetLevel: 'Intermediate', priority: 'High' } : s))
+      : [];
+
     const newUser = await createUser({
       name,
       email,
       password,
       college: college || 'University Student',
       branch: branch || 'Computer Science & Engineering',
+      year: year || '1st Year',
+      semester: semester || '',
+      skillsOffered: formattedSkillsOffered,
+      skillsWanted: formattedSkillsWanted,
+      bio: bio || '',
+      languages: Array.isArray(languages) ? languages : (languages ? [languages] : []),
+      interests: Array.isArray(interests) ? interests : (interests ? [interests] : []),
       username: email.split('@')[0]
     });
 

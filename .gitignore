@@ -19,6 +19,10 @@ dist-ssr
 server/.env
 server/.env.local
 
+# Database data
+server/.local-mongo-data/
+.local-mongo-data/
+
 # Uploaded video files (user content — do not commit)
 server/uploads/*
 !server/uploads/.gitkeep

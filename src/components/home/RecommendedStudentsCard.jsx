@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowRight, Star, UserPlus, CheckCircle2 } from 'lucide-react';
 import { skillMatchingService } from '../../services/skillMatchingService';
-import { MOCK_USERS, CURRENT_USER } from '../../data/mockUsers';
 import { useApp } from '../../context/AppContext';
 
 export const RecommendedStudentsCard = () => {
@@ -15,8 +14,8 @@ export const RecommendedStudentsCard = () => {
     const loadMatches = async () => {
       try {
         const matches = await skillMatchingService.getRankedMatches(
-          currentUser || CURRENT_USER,
-          MOCK_USERS
+          currentUser || null,
+          null
         );
         // Take top 3 recommendations
         setRecommended(matches.slice(0, 3));

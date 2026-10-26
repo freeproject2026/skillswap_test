@@ -7,7 +7,7 @@ export const TokenBalance = ({ className = '', compact = false }) => {
   const { tokens, currentUser } = useApp();
   const navigate = useNavigate();
 
-  const credits = currentUser?.credits || 150;
+  const credits = currentUser?.creditsBalance ?? currentUser?.credits ?? 0;
 
   return (
     <button

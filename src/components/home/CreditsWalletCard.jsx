@@ -2,14 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Wallet, ArrowRight, TrendingUp, ArrowDownRight, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import { walletService } from '../../services/walletService';
+import { useApp } from '../../context/AppContext';
 
 export const CreditsWalletCard = () => {
   const navigate = useNavigate();
+  const { currentUser } = useApp();
   const [walletData, setWalletData] = useState({
-    availableCredits: 150,
-    earnedCredits: 420,
-    spentCredits: 270,
-    reservedCredits: 60
+    availableCredits: 0,
+    earnedCredits: 0,
+    spentCredits: 0,
+    reservedCredits: 0
   });
 
   useEffect(() => {
@@ -18,10 +20,10 @@ export const CreditsWalletCard = () => {
         const summary = await walletService.getWalletSummary();
         if (summary) {
           setWalletData({
-            availableCredits: summary.balances?.availableCredits || 150,
-            earnedCredits: summary.totalEarnedCredits || 420,
-            spentCredits: summary.totalSpentCredits || 270,
-            reservedCredits: summary.balances?.reservedCredits || 60
+            availableCredits: summary.balances?.availableCredits ?? currentUser?.creditsBalance ?? 0,
+            earnedCredits: summary.totalEarnedCredits || 0,
+            spentCredits: summary.totalSpentCredits || 0,
+            reservedCredits: summary.balances?.reservedCredits || 0
           });
         }
       } catch (err) {
@@ -29,13 +31,13 @@ export const CreditsWalletCard = () => {
       }
     };
     fetchWallet();
-  }, []);
+  }, [currentUser]);
 
   const totalActivity = walletData.earnedCredits + walletData.spentCredits || 1;
   const earnedRatio = Math.round((walletData.earnedCredits / totalActivity) * 100);
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between">
+    <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between min-h-[340px]">
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800/80">
         <div className="flex items-center gap-2.5">

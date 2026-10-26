@@ -300,7 +300,7 @@ export const CampusCommunityPage = () => {
                   <div className="min-w-0">
                     <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate flex items-center gap-1">
                       {item.name}
-                      {item.id === 'usr_me' && (
+                      {(item.id === (currentUser?.id || currentUser?._id) || item.id === 'usr_me') && (
                         <span className="text-[10px] font-bold px-1.5 rounded bg-teal-100 dark:bg-teal-950 text-teal-800 dark:text-teal-300">You</span>
                       )}
                     </p>

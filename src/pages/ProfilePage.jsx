@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   MapPin, Star, Award, CheckCircle, Zap, Sparkles, Edit, Settings,
   Clock, Video, Users, BookOpen, Shield, Coins, Globe, GraduationCap,
   ExternalLink, Code2, Share2, CheckCircle2, TrendingUp, Layers,
-  Compass, FileCheck
+  Compass, FileCheck, Camera, Loader2
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import VideoCard from '../components/VideoCard';
@@ -15,6 +15,9 @@ import AuthModal from '../components/auth/AuthModal';
 import { studentProfileService } from '../services/studentProfileService';
 import { proofOfLearningService } from '../services/proofOfLearningService';
 import { videoService } from '../services/videoService';
+import { userService } from '../services/userService';
+
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80';
 
 const PROFILE_TABS = ['Skill Passport', 'Impact Dashboard', 'Proof of Learning', 'My Videos'];
 
@@ -24,6 +27,7 @@ export const ProfilePage = () => {
     currentUser,
     setCurrentUser,
     isGuest,
+    showToast,
     authModalOpen,
     setAuthModalOpen,
     authModalTab
@@ -33,6 +37,49 @@ export const ProfilePage = () => {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [proofTasks, setProofTasks] = useState([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [myVideos, setMyVideos] = useState([]);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInputRef = useRef(null);
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select a valid image file (JPG, PNG, WebP, GIF)', 'error');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Image file size must be under 5 MB', 'error');
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const updated = await userService.uploadAvatar(file);
+      setCurrentUser(updated);
+      showToast('Profile photo updated successfully!');
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Failed to update profile photo', 'error');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  // Sync fresh authenticated profile data from backend on load
+  useEffect(() => {
+    let isMounted = true;
+    if (!isGuest) {
+      userService.getCurrentUser().then(freshUser => {
+        if (isMounted && freshUser) {
+          setCurrentUser(freshUser);
+        }
+      }).catch(console.error);
+    }
+    return () => { isMounted = false; };
+  }, [isGuest, setCurrentUser]);
 
   useEffect(() => {
     const loadTasks = async () => {
@@ -49,6 +96,13 @@ export const ProfilePage = () => {
     if (currentUser) {
       loadTasks();
     }
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    videoService.getVideos().then(all => {
+      setMyVideos(all.filter(v => v.creator?.id === currentUser.id || v.creator?.id === currentUser._id));
+    }).catch(console.error);
   }, [currentUser]);
 
   // If Guest or Unauthenticated: Display AuthGate per Requirement D
@@ -69,14 +123,6 @@ export const ProfilePage = () => {
   }
 
   const completion = studentProfileService.calculateCompletionPercentage(currentUser);
-  const [myVideos, setMyVideos] = useState([]);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    videoService.getVideos().then(all => {
-      setMyVideos(all.filter(v => v.creator?.id === currentUser.id || v.creator?.id === currentUser._id));
-    }).catch(console.error);
-  }, [currentUser]);
 
   return (
     <div className="max-w-4xl mx-auto pb-24 px-3 sm:px-6 py-4 space-y-6 text-slate-800 dark:text-slate-100 transition-colors">
@@ -99,14 +145,34 @@ export const ProfilePage = () => {
       <div className="relative -mt-16 sm:-mt-20 z-10 bg-white dark:bg-slate-900 rounded-2xl p-5 sm:p-6 border border-slate-100 dark:border-slate-800 shadow-soft space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div className="flex items-end gap-3.5">
-            <div className="relative">
+            <div className="relative group">
               <img
-                src={currentUser.avatar}
+                src={currentUser.avatar || DEFAULT_AVATAR}
                 alt={currentUser.name}
                 className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover ring-4 ring-white dark:ring-slate-900 shadow-lg bg-white dark:bg-slate-800"
               />
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                onChange={handleAvatarChange}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute -bottom-1 -right-1 p-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white shadow-md border-2 border-white dark:border-slate-900 transition-all hover:scale-105 disabled:opacity-50"
+                title="Change Profile Photo"
+              >
+                {uploadingAvatar ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Camera className="w-3.5 h-3.5" />
+                )}
+              </button>
               {currentUser.emailVerified && (
-                <span className="absolute -bottom-1 -right-1 p-1 rounded-full bg-teal-600 text-white shadow-xs" title="Verified Campus Student">
+                <span className="absolute -top-1 -left-1 p-1 rounded-full bg-teal-600 text-white shadow-xs" title="Verified Campus Student">
                   <CheckCircle className="w-4 h-4" />
                 </span>
               )}
@@ -246,22 +312,28 @@ export const ProfilePage = () => {
           {/* Metrics Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-soft text-center">
-              <p className="text-2xl font-extrabold text-teal-700 dark:text-teal-400">{currentUser.hoursTaught || 54}h</p>
+              <p className="text-2xl font-extrabold text-teal-700 dark:text-teal-400">{currentUser.hoursTaught ?? 0}h</p>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Hours Taught</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-soft text-center">
-              <p className="text-2xl font-extrabold text-purple-700 dark:text-purple-400">{currentUser.hoursLearned || 38}h</p>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Hours Learned</p>
+              <p className="text-2xl font-extrabold text-purple-700 dark:text-purple-400">
+                {(currentUser.hoursLearned ?? 0) > 0
+                  ? `${currentUser.hoursLearned}h`
+                  : `${currentUser.watchTimeMinutes ?? 0}m`}
+              </p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">
+                {(currentUser.hoursLearned ?? 0) > 0 ? 'Hours Learned' : 'Watch Time (0 minutes)'}
+              </p>
             </div>
 
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-soft text-center">
-              <p className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400">{currentUser.completedSessionsCount || 42}</p>
+              <p className="text-2xl font-extrabold text-emerald-700 dark:text-emerald-400">{currentUser.completedSessionsCount ?? 0}</p>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Sessions Completed</p>
             </div>
 
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-soft text-center">
-              <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">{currentUser.tasksApprovedCount || 12}</p>
+              <p className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">{currentUser.tasksApprovedCount ?? 0}</p>
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-0.5">Tasks Verified</p>
             </div>
           </div>
@@ -271,24 +343,44 @@ export const ProfilePage = () => {
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-soft space-y-2">
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Teaching Quality Rating</span>
               <div className="flex items-center gap-2">
-                <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                <span className="text-2xl font-extrabold text-slate-900 dark:text-white">{currentUser.teachingRating || 4.95}</span>
-                <span className="text-xs text-slate-400">/ 5.0 (38 completed sessions)</span>
+                <Star className={`w-5 h-5 ${(currentUser.teachingRating || currentUser.rating || 0) > 0 ? 'text-amber-500 fill-amber-500' : 'text-slate-300 dark:text-slate-600'}`} />
+                <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
+                  {(currentUser.teachingRating || currentUser.rating || 0) > 0
+                    ? (currentUser.teachingRating || currentUser.rating).toFixed(1)
+                    : '0'}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {(currentUser.reviewCount || 0) > 0
+                    ? `/ 5.0 (${currentUser.reviewCount} review${currentUser.reviewCount === 1 ? '' : 's'})`
+                    : '(No ratings yet)'}
+                </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                Evaluated for technical depth, pacing, and helpful code review walk-throughs.
+                {(currentUser.reviewCount || 0) > 0
+                  ? 'Evaluated for technical depth, pacing, and helpful code review walk-throughs.'
+                  : 'Teaching quality ratings appear after peers submit reviews on completed sessions.'}
               </p>
             </div>
 
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-soft space-y-2">
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Communication & Punctuality</span>
               <div className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-teal-600 dark:text-teal-400" />
-                <span className="text-2xl font-extrabold text-slate-900 dark:text-white">{currentUser.communicationRating || 4.88}</span>
-                <span className="text-xs text-slate-400">/ 5.0 (Zero no-shows recorded)</span>
+                <Shield className={`w-5 h-5 ${(currentUser.communicationRating || 0) > 0 ? 'text-teal-600 dark:text-teal-400' : 'text-slate-300 dark:text-slate-600'}`} />
+                <span className="text-2xl font-extrabold text-slate-900 dark:text-white">
+                  {(currentUser.communicationRating || 0) > 0
+                    ? currentUser.communicationRating.toFixed(1)
+                    : '0'}
+                </span>
+                <span className="text-xs text-slate-400">
+                  {(currentUser.reviewCount || 0) > 0
+                    ? `/ 5.0`
+                    : '(No ratings yet)'}
+                </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                Prompt responses, respectful peer interaction, and zero unexcused cancellations.
+                {(currentUser.reviewCount || 0) > 0
+                  ? 'Prompt responses, respectful peer interaction, and zero unexcused cancellations.'
+                  : 'Communication score is recorded from session partner feedback upon completion.'}
               </p>
             </div>
           </div>

@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, X, Video, Users, Sparkles } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { videoService } from '../services/videoService';
-import { MOCK_USERS } from '../data/mockUsers';
+import { userService } from '../services/userService';
 
 export const SearchOverlay = () => {
   const { searchOpen, setSearchOpen, searchQuery, setSearchQuery } = useApp();
@@ -19,22 +19,18 @@ export const SearchOverlay = () => {
     }
   }, [searchOpen]);
 
-  // Search real API for videos, mock for people (until people API is wired)
+  // Search real API for videos and people
   const runSearch = useCallback(async (q) => {
     if (!q.trim()) {
       setResults({ videos: [], people: [] });
       return;
     }
     try {
-      const videos = await videoService.getVideos({ search: q });
-      const lq = q.toLowerCase();
-      const matchedPeople = MOCK_USERS.filter(u =>
-        u.name.toLowerCase().includes(lq) ||
-        u.username.toLowerCase().includes(lq) ||
-        u.skillsOffered.some(s => s.name.toLowerCase().includes(lq)) ||
-        u.skillsWanted.some(s => s.name.toLowerCase().includes(lq))
-      ).slice(0, 5);
-      setResults({ videos: videos.slice(0, 5), people: matchedPeople });
+      const [videos, people] = await Promise.all([
+        videoService.getVideos({ search: q }),
+        userService.getAllUsers({ search: q })
+      ]);
+      setResults({ videos: videos.slice(0, 5), people: people.slice(0, 5) });
     } catch (err) {
       console.error('Search error:', err);
     }

@@ -2,6 +2,7 @@
 import express from 'express';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
 import { listQuizzes, findQuizById, createQuiz, updateQuiz, deleteQuiz } from '../data/store.js';
+import { QuizAttempt } from '../models/QuizAttempt.js';
 
 const router = express.Router();
 
@@ -99,6 +100,63 @@ router.patch('/:id', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Update quiz error:', err);
     res.status(500).json({ success: false, error: 'Failed to update quiz.' });
+  }
+});
+
+// POST /api/quizzes/:id/attempt – Submit attempt and calculate score (auth required)
+router.post('/:id/attempt', requireAuth, async (req, res) => {
+  try {
+    const quiz = await findQuizById(req.params.id);
+    if (!quiz) return res.status(404).json({ success: false, error: 'Quiz not found.' });
+
+    const { userAnswers } = req.body; // array of { questionId, selectedOption }
+    if (!userAnswers || !Array.isArray(userAnswers)) {
+      return res.status(400).json({ success: false, error: 'User answers array required.' });
+    }
+
+    let correctCount = 0;
+    const gradedAnswers = (quiz.questions || []).map((q, idx) => {
+      const submitted = userAnswers.find(a => a.questionId === q.id || a.questionIndex === idx);
+      const isCorrect = submitted && submitted.selectedOption === q.correctOptionIndex;
+      if (isCorrect) correctCount++;
+      return {
+        questionId: q.id,
+        selectedOption: submitted ? submitted.selectedOption : -1,
+        isCorrect: !!isCorrect,
+        correctOptionIndex: q.correctOptionIndex,
+        explanation: q.explanation || ''
+      };
+    });
+
+    const totalQuestions = (quiz.questions || []).length || 1;
+    const percentage = Math.round((correctCount / totalQuestions) * 100);
+
+    const attempt = new QuizAttempt({
+      userId: req.user.id,
+      quizId: quiz.id || quiz._id.toString(),
+      quizTitle: quiz.title,
+      topic: quiz.topic,
+      score: correctCount,
+      totalQuestions,
+      percentage,
+      answers: gradedAnswers
+    });
+
+    await attempt.save();
+
+    res.json({
+      success: true,
+      result: {
+        score: correctCount,
+        totalQuestions,
+        percentage,
+        passed: percentage >= 70,
+        gradedAnswers
+      }
+    });
+  } catch (err) {
+    console.error('Quiz attempt error:', err);
+    res.status(500).json({ success: false, error: 'Failed to evaluate quiz attempt.' });
   }
 });
 

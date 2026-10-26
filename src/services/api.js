@@ -70,6 +70,24 @@ export const apiClient = {
     }
   },
 
+  patch: async (endpoint, data = {}) => {
+    try {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data)
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(resData.error || `Request failed with status ${res.status}`);
+      }
+      return resData;
+    } catch (err) {
+      console.warn(`[apiClient PATCH fallback] ${endpoint}:`, err.message);
+      throw err;
+    }
+  },
+
   delete: async (endpoint) => {
     try {
       const res = await fetch(`${API_BASE_URL}${endpoint}`, {

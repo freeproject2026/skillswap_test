@@ -4,7 +4,6 @@ import { AppProvider } from './context/AppContext';
 import Header from './components/Header';
 import BottomNavigation from './components/BottomNavigation';
 import SearchOverlay from './components/SearchOverlay';
-import FloatingAIAssistant from './components/ai/FloatingAIAssistant';
 
 // Redesigned Home Page (Page 1)
 const HomePage = lazy(() => import('./pages/HomePage'));
@@ -54,9 +53,6 @@ function AppContent() {
 
       {/* Search Overlay (global) */}
       <SearchOverlay />
-
-      {/* Floating AI Assistant (global on all pages) */}
-      <FloatingAIAssistant />
 
       {/* Main Content */}
       <main className="flex-1 w-full">

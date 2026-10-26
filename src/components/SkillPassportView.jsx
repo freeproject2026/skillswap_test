@@ -6,11 +6,16 @@ import {
 import { SkillEvidenceModal } from './SkillEvidenceModal';
 import { useApp } from '../context/AppContext';
 
-export const SkillPassportView = ({ student, isOwnProfile = false }) => {
+export const SkillPassportView = ({ student = {}, isOwnProfile = false }) => {
   const { showToast } = useApp();
   const [selectedSkill, setSelectedSkill] = useState(null);
   const [privacySetting, setPrivacySetting] = useState(student?.privacySettings?.profileVisibility || 'public');
   const [copied, setCopied] = useState(false);
+
+  // Evidence-backed skills are those with verified proof/peer validation, excluding unverified 'Self-Declared'
+  const evidenceBackedSkillsCount = (student?.skillsOffered || []).filter(
+    (skill) => skill?.evidenceStatus && skill.evidenceStatus !== 'Self-Declared'
+  ).length;
 
   const handleCopyLink = () => {
     const demoUrl = `${window.location.origin}/profile/${student.username || 'student'}?view=passport`;
@@ -90,19 +95,19 @@ export const SkillPassportView = ({ student, isOwnProfile = false }) => {
         {/* High-Level Overview Metrics */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-5 border-t border-white/10">
           <div>
-            <p className="text-xl font-extrabold text-teal-400">{student.hoursTaught || 54}h</p>
+            <p className="text-xl font-extrabold text-teal-400">{student?.hoursTaught ?? 0}h</p>
             <p className="text-[11px] text-slate-400 font-medium">Peer Teaching Delivered</p>
           </div>
           <div>
-            <p className="text-xl font-extrabold text-teal-300">{student.hoursLearned || 38}h</p>
+            <p className="text-xl font-extrabold text-teal-300">{student?.hoursLearned ?? 0}h</p>
             <p className="text-[11px] text-slate-400 font-medium">Learning Hours Completed</p>
           </div>
           <div>
-            <p className="text-xl font-extrabold text-amber-400">{student.completedSessionsCount || 42}</p>
+            <p className="text-xl font-extrabold text-amber-400">{student?.completedSessionsCount ?? 0}</p>
             <p className="text-[11px] text-slate-400 font-medium">Completed Sessions</p>
           </div>
           <div>
-            <p className="text-xl font-extrabold text-purple-400">{student.skillsOffered?.length || 4}</p>
+            <p className="text-xl font-extrabold text-purple-400">{evidenceBackedSkillsCount}</p>
             <p className="text-[11px] text-slate-400 font-medium">Evidence-Backed Skills</p>
           </div>
         </div>
@@ -121,44 +126,50 @@ export const SkillPassportView = ({ student, isOwnProfile = false }) => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {(student.skillsOffered || []).map((skill, i) => (
-            <div
-              key={i}
-              onClick={() => setSelectedSkill(skill)}
-              className="group p-4 rounded-xl border border-slate-200/80 hover:border-teal-300 hover:shadow-sm bg-slate-50/50 hover:bg-white cursor-pointer transition-all"
-            >
-              <div className="flex items-start justify-between gap-2 mb-1.5">
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800 group-hover:text-teal-700 transition-colors">
-                    {skill.name}
-                  </h4>
-                  <p className="text-[11px] text-slate-500">{skill.category || 'Engineering'}</p>
+          {(student?.skillsOffered || []).length > 0 ? (
+            student.skillsOffered.map((skill, i) => (
+              <div
+                key={i}
+                onClick={() => setSelectedSkill(skill)}
+                className="group p-4 rounded-xl border border-slate-200/80 hover:border-teal-300 hover:shadow-sm bg-slate-50/50 hover:bg-white cursor-pointer transition-all"
+              >
+                <div className="flex items-start justify-between gap-2 mb-1.5">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-800 group-hover:text-teal-700 transition-colors">
+                      {skill.name}
+                    </h4>
+                    <p className="text-[11px] text-slate-500">{skill.category || 'Engineering'}</p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200/80 text-slate-700">
+                    {skill.level || 'Intermediate'}
+                  </span>
                 </div>
-                <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-200/80 text-slate-700">
-                  {skill.level || 'Intermediate'}
-                </span>
-              </div>
 
-              {/* Evidence Tag */}
-              <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 text-[11px]">
-                <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full ${
-                  skill.evidenceStatus === 'Demonstrated Across Projects'
-                    ? 'bg-purple-100 text-purple-700'
-                    : skill.evidenceStatus === 'Peer-Reviewed'
-                    ? 'bg-teal-100 text-teal-800'
-                    : skill.evidenceStatus === 'Practical Task Completed'
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'bg-slate-100 text-slate-600'
-                }`}>
-                  <CheckCircle className="w-3 h-3" />
-                  {skill.evidenceStatus || 'Self-Declared'}
-                </span>
-                <span className="text-slate-400 text-[10px] group-hover:text-teal-600 font-semibold flex items-center gap-0.5">
-                  View Dossier →
-                </span>
+                {/* Evidence Tag */}
+                <div className="flex items-center justify-between mt-3 pt-2.5 border-t border-slate-100 text-[11px]">
+                  <span className={`inline-flex items-center gap-1 font-bold px-2 py-0.5 rounded-full ${
+                    skill.evidenceStatus === 'Demonstrated Across Projects'
+                      ? 'bg-purple-100 text-purple-700'
+                      : skill.evidenceStatus === 'Peer-Reviewed'
+                      ? 'bg-teal-100 text-teal-800'
+                      : skill.evidenceStatus === 'Practical Task Completed'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    <CheckCircle className="w-3 h-3" />
+                    {skill.evidenceStatus || 'Self-Declared'}
+                  </span>
+                  <span className="text-slate-400 text-[10px] group-hover:text-teal-600 font-semibold flex items-center gap-0.5">
+                    View Dossier →
+                  </span>
+                </div>
               </div>
+            ))
+          ) : (
+            <div className="col-span-full py-8 text-center text-slate-400 text-xs">
+              No skills offered yet. Add your skills in Edit Profile to start sharing and verifying skills.
             </div>
-          ))}
+          )}
         </div>
       </section>
 
@@ -172,17 +183,23 @@ export const SkillPassportView = ({ student, isOwnProfile = false }) => {
         </div>
 
         <div className="space-y-3">
-          {(student.skillsWanted || []).map((skill, i) => (
-            <div key={i} className="p-3.5 rounded-xl border border-slate-100 bg-purple-50/40">
-              <div className="flex items-center justify-between gap-2 mb-1">
-                <span className="text-sm font-bold text-slate-800">{skill.name}</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
-                  Target: {skill.targetLevel || 'Advanced'}
-                </span>
+          {(student?.skillsWanted || []).length > 0 ? (
+            student.skillsWanted.map((skill, i) => (
+              <div key={i} className="p-3.5 rounded-xl border border-slate-100 bg-purple-50/40">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-sm font-bold text-slate-800">{skill.name}</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">
+                    Target: {skill.targetLevel || 'Advanced'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 leading-relaxed">{skill.reason}</p>
               </div>
-              <p className="text-xs text-slate-600 leading-relaxed">{skill.reason}</p>
+            ))
+          ) : (
+            <div className="py-8 text-center text-slate-400 text-xs">
+              No learning goals added yet. Add what you want to learn in Edit Profile.
             </div>
-          ))}
+          )}
         </div>
       </section>
 
@@ -196,22 +213,28 @@ export const SkillPassportView = ({ student, isOwnProfile = false }) => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {(student.passportBadges || []).map(badge => (
-            <div key={badge.id} className="flex items-start gap-3 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50">
-              <div className="w-9 h-9 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
-                <Award className="w-4.5 h-4.5" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-slate-800">{badge.name}</p>
-                  {badge.dateAwarded && (
-                    <span className="text-[10px] text-slate-400">{badge.dateAwarded}</span>
-                  )}
+          {(student?.passportBadges || []).length > 0 ? (
+            student.passportBadges.map(badge => (
+              <div key={badge.id} className="flex items-start gap-3 p-3.5 rounded-xl border border-slate-100 bg-slate-50/50">
+                <div className="w-9 h-9 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
+                  <Award className="w-4.5 h-4.5" />
                 </div>
-                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{badge.desc}</p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-bold text-slate-800">{badge.name}</p>
+                    {badge.dateAwarded && (
+                      <span className="text-[10px] text-slate-400">{badge.dateAwarded}</span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{badge.desc}</p>
+                </div>
               </div>
+            ))
+          ) : (
+            <div className="col-span-full py-8 text-center text-slate-400 text-xs">
+              No badges earned yet. Complete peer sessions and verified learning milestones to earn badges.
             </div>
-          ))}
+          )}
         </div>
       </section>
 

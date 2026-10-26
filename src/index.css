@@ -7,6 +7,39 @@
     @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased font-sans selection:bg-teal-500 selection:text-white min-h-screen transition-colors duration-200;
     overflow-x: hidden;
   }
+
+  /* Universal form control caret and contrast */
+  input, textarea, select {
+    @apply caret-teal-600 dark:caret-teal-400;
+  }
+
+  /* In dark mode, ensure typed text is crisp with strong contrast, and controls adapt */
+  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="range"]),
+  .dark textarea,
+  .dark select {
+    color-scheme: dark;
+  }
+
+  /* Browser autofill styling to prevent washed out text or blinding white backgrounds */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  textarea:-webkit-autofill,
+  textarea:-webkit-autofill:hover,
+  textarea:-webkit-autofill:focus,
+  select:-webkit-autofill {
+    -webkit-text-fill-color: inherit !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus,
+  .dark textarea:-webkit-autofill,
+  .dark textarea:-webkit-autofill:hover,
+  .dark textarea:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f8fafc !important;
+  }
 }
 
 /* Custom scrollbar for modern video & chat feeds */

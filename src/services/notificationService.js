@@ -1,58 +1,25 @@
-import { apiClient, simulateDelay } from './api';
-import { MOCK_NOTIFICATIONS } from '../data/mockNotifications';
-
-const STORAGE_KEY_NOTIFS = 'skillswap_notifications';
-
-const getInitialNotifications = () => {
-  const stored = localStorage.getItem(STORAGE_KEY_NOTIFS);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-  return MOCK_NOTIFICATIONS;
-};
-
-let notifications = getInitialNotifications();
-
-const saveState = () => {
-  localStorage.setItem(STORAGE_KEY_NOTIFS, JSON.stringify(notifications));
-};
+import { apiClient } from './api';
 
 export const notificationService = {
   getNotifications: async () => {
-    await simulateDelay(80);
-    return [...notifications];
+    const res = await apiClient.get('/notifications');
+    return res?.notifications || [];
   },
 
   getUnreadCount: async () => {
-    await simulateDelay(50);
-    return notifications.filter(n => !n.isRead).length;
+    const res = await apiClient.get('/notifications/unread-count');
+    return res?.count || 0;
   },
 
   markAsRead: async (id) => {
-    await simulateDelay(60);
-    notifications = notifications.map(n => n.id === id ? { ...n, isRead: true } : n);
-    saveState();
-    return true;
+    const res = await apiClient.patch(`/notifications/${id}/read`, {});
+    return !!res?.success;
   },
 
   markAllAsRead: async () => {
-    await simulateDelay(80);
-    notifications = notifications.map(n => ({ ...n, isRead: true }));
-    saveState();
-    return true;
-  },
-
-  updateNotificationStatus: async (id, status) => {
-    await simulateDelay(100);
-    notifications = notifications.map(n => n.id === id ? { ...n, status, isRead: true } : n);
-    saveState();
-    return status;
+    const res = await apiClient.patch('/notifications/mark-all-read', {});
+    return !!res?.success;
   }
 };
 
 export default notificationService;
-

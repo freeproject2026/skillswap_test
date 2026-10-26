@@ -137,7 +137,9 @@ export const PersonCard = ({ person, showMatchInfo = true }) => {
             </div>
             <div className="flex items-center gap-1 shrink-0 bg-amber-50 dark:bg-amber-950/40 px-1.5 py-0.5 rounded-md border border-amber-100 dark:border-amber-800/50">
               <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-              <span className="text-xs font-bold text-amber-800 dark:text-amber-300">{person.rating}</span>
+              <span className="text-xs font-bold text-amber-800 dark:text-amber-300">
+                {person.rating && person.rating > 0 ? person.rating.toFixed(1) : 'No ratings yet'}
+              </span>
             </div>
           </div>
 

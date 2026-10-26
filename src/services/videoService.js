@@ -6,12 +6,14 @@ import apiClient from './api';
 
 export const videoService = {
   /**
-   * List videos, optionally filtered by category and/or search term.
+   * List videos, optionally filtered by category, search term, and/or topic/hashtag.
    */
-  getVideos: async ({ category = 'All', search = '' } = {}) => {
+  getVideos: async ({ category = 'All', search = '', topic = '', hashtag = '' } = {}) => {
     const params = new URLSearchParams();
     if (category && category !== 'All') params.set('category', category);
     if (search && search.trim()) params.set('search', search.trim());
+    if (topic && topic.trim()) params.set('topic', topic.trim());
+    if (hashtag && hashtag.trim()) params.set('hashtag', hashtag.trim());
 
     const query = params.toString() ? `?${params.toString()}` : '';
     const res = await apiClient.get(`/videos${query}`);
@@ -80,20 +82,11 @@ export const videoService = {
 
   /**
    * Add a comment to a video.
-   * NOTE: A dedicated /api/videos/:id/comments endpoint is needed on the backend.
-   * For now, we optimistically return the comment locally.
    */
-  addComment: async (videoId, { author, avatar, text }) => {
-    const newComment = {
-      id: `c_${Date.now()}`,
-      author,
-      avatar,
-      text,
-      createdAt: 'Just now',
-      likes: 0
-    };
-    // TODO: POST /api/videos/:id/comments once that endpoint is created
-    return newComment;
+  addComment: async (videoId, { text }) => {
+    const res = await apiClient.post(`/videos/${videoId}/comments`, { text });
+    if (!res?.comment) throw new Error(res?.error || 'Failed to post comment.');
+    return res.comment;
   },
 
   /**
@@ -125,6 +118,34 @@ export const videoService = {
   deleteVideo: async (videoId) => {
     const res = await apiClient.delete(`/videos/${videoId}`);
     if (!res?.success) throw new Error('Failed to delete video.');
+    return res;
+  },
+
+  /**
+   * Record playback progress for a video and update user's watch time.
+   */
+  recordWatchProgress: async (videoId, { currentTime, duration }) => {
+    const res = await apiClient.post(`/videos/${videoId}/watch-progress`, {
+      currentTime,
+      duration
+    });
+    return res;
+  },
+
+  /**
+   * Get verified watch progress and rating eligibility for a video.
+   */
+  getWatchProgress: async (videoId) => {
+    const res = await apiClient.get(`/videos/${videoId}/watch-progress`);
+    return res;
+  },
+
+  /**
+   * Rate a video (only eligible after watching > 60%).
+   */
+  rateVideo: async (videoId, rating) => {
+    const res = await apiClient.post(`/videos/${videoId}/rate`, { rating });
+    if (!res?.success) throw new Error(res?.error || 'Failed to submit rating.');
     return res;
   }
 };

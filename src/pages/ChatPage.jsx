@@ -47,10 +47,12 @@ export const ChatPage = () => {
     messagesEnd.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  const myId = currentUser?.id || currentUser?._id;
+
   const handleSend = async () => {
     if (!text.trim() || !conversation) return;
     try {
-      const msg = await chatService.sendMessage(conversation.id, { senderId: 'usr_me', text: text.trim(), type: 'text' });
+      const msg = await chatService.sendMessage(conversation.id, { senderId: myId, text: text.trim(), type: 'text' });
       setMessages(prev => [...prev, msg]);
       setText('');
     } catch (err) { console.error(err); }
@@ -71,7 +73,7 @@ export const ChatPage = () => {
     };
     try {
       const msg = await chatService.sendMessage(conversation.id, {
-        senderId: 'usr_me',
+        senderId: myId,
         text: `Proposed a ${proposeDuration}-minute session on ${proposeSkill}.`,
         type: 'session_proposal',
         sessionData
@@ -154,7 +156,7 @@ export const ChatPage = () => {
         )}
 
         {messages.map(msg => {
-          const isMe = msg.senderId === 'usr_me';
+          const isMe = msg.senderId === myId || msg.senderId === 'usr_me';
           const isSystem = msg.senderId === 'system' || msg.type === 'system';
           const isProposal = msg.type === 'session_proposal';
 

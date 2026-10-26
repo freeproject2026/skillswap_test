@@ -18,7 +18,8 @@ export const PopularSkillsCard = () => {
   ];
 
   const handleSkillClick = (skillName) => {
-    navigate(`/connect/people?skill=${encodeURIComponent(skillName)}`);
+    const cleanTopic = skillName.replace(/^#/, '').trim();
+    navigate(`/connect/people?topic=${encodeURIComponent(cleanTopic)}`);
   };
 
   return (

@@ -1,5 +1,4 @@
 import { apiClient, simulateDelay } from './api';
-import { CURRENT_USER } from '../data/mockUsers';
 
 const STORAGE_KEY_STUDENT_PROFILE = 'skillswap_student_profile';
 
@@ -12,7 +11,7 @@ const getInitialProfile = () => {
       console.error('Failed to parse student profile', e);
     }
   }
-  return CURRENT_USER;
+  return null;
 };
 
 let studentProfile = getInitialProfile();

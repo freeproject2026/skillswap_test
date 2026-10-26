@@ -1,76 +1,35 @@
-import { apiClient, simulateDelay } from './api';
-import { MOCK_USERS } from '../data/mockUsers';
-
-const STORAGE_KEY_CONNECTIONS = 'skillswap_connections_state';
-
-const getInitialConnectionsState = () => {
-  const stored = localStorage.getItem(STORAGE_KEY_CONNECTIONS);
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (e) {
-      console.error(e);
-    }
-  }
-  // Default connection status map: { [userId]: 'connected' | 'pending' | 'none' }
-  const initialMap = {};
-  const initialFollowing = ['usr_1', 'usr_3', 'usr_2'];
-  MOCK_USERS.forEach(u => {
-    initialMap[u.id] = u.connectionStatus || 'none';
-  });
-  return { statuses: initialMap, following: initialFollowing };
-};
-
-let connectionsState = getInitialConnectionsState();
-
-const saveState = () => {
-  localStorage.setItem(STORAGE_KEY_CONNECTIONS, JSON.stringify(connectionsState));
-};
+import { apiClient } from './api';
 
 export const connectionService = {
   getConnectionStatuses: async () => {
-    await simulateDelay(60);
-    return { ...connectionsState.statuses };
+    const res = await apiClient.get('/connections/status');
+    return res?.statuses || {};
   },
 
   getFollowingIds: async () => {
-    await simulateDelay(60);
-    return [...connectionsState.following];
+    const res = await apiClient.get('/connections/status');
+    return res?.following || [];
   },
 
   sendConnectionRequest: async (userId) => {
-    await simulateDelay(150);
-    connectionsState.statuses[userId] = 'pending';
-    saveState();
-    return 'pending';
+    const res = await apiClient.post(`/connections/request/${userId}`, {});
+    return res?.success ? 'pending' : 'none';
   },
 
   acceptConnectionRequest: async (userId) => {
-    await simulateDelay(150);
-    connectionsState.statuses[userId] = 'connected';
-    saveState();
-    return 'connected';
+    const res = await apiClient.post(`/connections/accept/${userId}`, {});
+    return res?.success ? 'connected' : 'none';
   },
 
   declineConnectionRequest: async (userId) => {
-    await simulateDelay(150);
-    connectionsState.statuses[userId] = 'none';
-    saveState();
-    return 'none';
+    const res = await apiClient.post(`/connections/decline/${userId}`, {});
+    return res?.success ? 'none' : 'pending';
   },
 
   toggleFollow: async (userId) => {
-    await simulateDelay(100);
-    const isFollowing = connectionsState.following.includes(userId);
-    if (isFollowing) {
-      connectionsState.following = connectionsState.following.filter(id => id !== userId);
-    } else {
-      connectionsState.following.push(userId);
-    }
-    saveState();
-    return !isFollowing;
+    const res = await apiClient.post(`/connections/follow/${userId}`, {});
+    return !!res?.isFollowing;
   }
 };
 
 export default connectionService;
-

@@ -6,6 +6,7 @@ import {
   LogIn, UserCheck, Shield, Sliders
 } from 'lucide-react';
 import { useApp } from '../../context/AppContext';
+import DatabaseStatusPill from '../DatabaseStatusPill';
 
 export const HomeHeader = ({ onMenuClick }) => {
   const navigate = useNavigate();
@@ -62,6 +63,8 @@ export const HomeHeader = ({ onMenuClick }) => {
 
         {/* Right Actions: Customize Dashboard, Theme Toggle, Notifications, User/Guest Profile */}
         <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          {/* Database Health Status */}
+          <DatabaseStatusPill />
           
           {/* Customize Dashboard Trigger */}
           <button

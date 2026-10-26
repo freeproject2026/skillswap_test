@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Plus, Calendar, Wallet, Award, ArrowUpRight } from 'lucide-react';
+import { Search, Plus, Calendar, Award, ArrowUpRight } from 'lucide-react';
 
 export const QuickActions = () => {
   const navigate = useNavigate();
@@ -40,17 +40,6 @@ export const QuickActions = () => {
       titleColor: 'text-purple-950 dark:text-purple-100',
     },
     {
-      id: 'credits',
-      title: 'View Credits',
-      description: 'Check balance & transactions',
-      icon: Wallet,
-      path: '/wallet',
-      cardBg: 'bg-amber-50/70 hover:bg-amber-50 dark:bg-amber-950/20 dark:hover:bg-amber-950/30',
-      borderColor: 'border-amber-100 dark:border-amber-900/40 hover:border-amber-300 dark:hover:border-amber-700/60',
-      iconBg: 'bg-amber-500 text-white shadow-amber-500/25',
-      titleColor: 'text-amber-950 dark:text-amber-100',
-    },
-    {
       id: 'passport',
       title: 'Open Skill Passport',
       description: 'Showcase your achievements',
@@ -68,15 +57,15 @@ export const QuickActions = () => {
       {/* Section Header */}
       <div>
         <h2 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">
-          Quick Actions
+          Quick Access
         </h2>
         <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
           Get started with what you want to do today.
         </p>
       </div>
 
-      {/* Cards Grid: 5 columns on desktop (xl), 2-3 on tablet, 1-2 on mobile */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
+      {/* Cards Grid: 4 columns in a single horizontal row on desktop and wide screens */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         {actions.map((act) => {
           const Icon = act.icon;
 

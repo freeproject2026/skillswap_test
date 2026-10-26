@@ -59,16 +59,14 @@ export const HomePage = () => {
               {/* Quick Actions (Customizable) */}
               {dashboardPrefs.quickActions !== false && <QuickActions />}
 
-              {/* Upcoming Sessions (Customizable) */}
-              {dashboardPrefs.upcomingSessions !== false && <UpcomingSessionsCard />}
+              {/* Two-Column Row: Your Credits (Left) + Upcoming Sessions (Right) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6 items-start">
+                <CreditsWalletCard />
+                <UpcomingSessionsCard />
+              </div>
 
-              {/* Twin Cards Grid: Credits Wallet + Learning Progress (Customizable) */}
-              {(dashboardPrefs.creditsWallet !== false || dashboardPrefs.learningProgress !== false) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
-                  {dashboardPrefs.creditsWallet !== false && <CreditsWalletCard />}
-                  {dashboardPrefs.learningProgress !== false && <LearningProgressCard />}
-                </div>
-              )}
+              {/* Learning Progress (Customizable) */}
+              {dashboardPrefs.learningProgress !== false && <LearningProgressCard />}
 
               {/* Explore Skills Section (Customizable) */}
               {dashboardPrefs.exploreSkills !== false && <ExploreSkillsSection />}

@@ -1,51 +1,112 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search, Filter, Users, UserCheck, Globe, Star, Clock,
-  GraduationCap, Sparkles, SlidersHorizontal, X, ArrowRight
+  GraduationCap, Sparkles, SlidersHorizontal, X, ArrowRight, Tag
 } from 'lucide-react';
 import PersonCard from '../components/PersonCard';
-import { MOCK_USERS } from '../data/mockUsers';
 import { SKILL_CATEGORIES } from '../data/mockSkillsData';
 import { useApp } from '../context/AppContext';
+import { userService } from '../services/userService';
 import { AuthModal } from '../components/auth/AuthModal';
 
 export const PeopleDiscovery = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { connectionStatuses, acceptConnection, declineConnection } = useApp();
 
-  const [search, setSearch] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  // Normalize topic from URL query param (handles ?topic=, ?skill=, ?hashtag=)
+  const initialTopic = (
+    searchParams.get('topic') ||
+    searchParams.get('skill') ||
+    searchParams.get('hashtag') ||
+    ''
+  ).replace(/^#/, '').trim();
+
+  const initialCategory = searchParams.get('category') || 'All Categories';
+  const initialSearch = searchParams.get('search') || '';
+
+  const [search, setSearch] = useState(initialSearch);
+  const [activeTopic, setActiveTopic] = useState(initialTopic);
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedFormat, setSelectedFormat] = useState('All');
   const [selectedLevel, setSelectedLevel] = useState('All');
   const [selectedAvailability, setSelectedAvailability] = useState('All');
   const [maxCredits, setMaxCredits] = useState('All');
   const [showFiltersDrawer, setShowFiltersDrawer] = useState(false);
+  const [allUsers, setAllUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const pendingUsers = MOCK_USERS.filter(u => connectionStatuses[u.id] === 'pending');
+  // Sync state when URL params change (e.g. browser back/forward or new link)
+  useEffect(() => {
+    const topicFromUrl = (
+      searchParams.get('topic') ||
+      searchParams.get('skill') ||
+      searchParams.get('hashtag') ||
+      ''
+    ).replace(/^#/, '').trim();
+    const catFromUrl = searchParams.get('category') || 'All Categories';
+    const searchFromUrl = searchParams.get('search') || '';
 
-  let filtered = [...MOCK_USERS];
+    setActiveTopic(topicFromUrl);
+    setSelectedCategory(catFromUrl);
+    if (searchFromUrl !== search) {
+      setSearch(searchFromUrl);
+    }
+  }, [searchParams]);
 
-  // 1. Text Search (name, username, college, skills)
-  if (search.trim()) {
-    const q = search.toLowerCase();
-    filtered = filtered.filter(u =>
-      u.name.toLowerCase().includes(q) ||
-      u.username.toLowerCase().includes(q) ||
-      (u.college && u.college.toLowerCase().includes(q)) ||
-      u.skillsOffered.some(s => s.name.toLowerCase().includes(q)) ||
-      u.skillsWanted.some(s => s.name.toLowerCase().includes(q))
-    );
-  }
+  // Update URL search params to preserve state on refresh and navigation
+  const updateUrlParams = (newTopic, newCat, newSearch) => {
+    const params = new URLSearchParams();
+    if (newTopic) params.set('topic', newTopic);
+    if (newCat && newCat !== 'All Categories' && newCat !== 'All') params.set('category', newCat);
+    if (newSearch && newSearch.trim()) params.set('search', newSearch.trim());
+    setSearchParams(params, { replace: true });
+  };
 
-  // 2. Skill Category Filter
-  if (selectedCategory !== 'All Categories') {
-    filtered = filtered.filter(u =>
-      u.skillsOffered.some(s => s.category === selectedCategory) ||
-      u.skillsWanted.some(s => s.category === selectedCategory)
-    );
-  }
+  // Fetch users from API on mount and when search/category/topic changes
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const users = await userService.getAllUsers({
+        search: search.trim() || undefined,
+        category: selectedCategory !== 'All Categories' ? selectedCategory : undefined,
+        topic: activeTopic || undefined
+      });
+      setAllUsers(users);
+    } catch (err) {
+      console.error('Failed to fetch users:', err);
+      setAllUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [search, selectedCategory, activeTopic]);
 
+  useEffect(() => {
+    const timer = setTimeout(fetchUsers, 300);
+    return () => clearTimeout(timer);
+  }, [fetchUsers]);
+
+  const handleCategorySelect = (cat) => {
+    setSelectedCategory(cat);
+    updateUrlParams(activeTopic, cat, search);
+  };
+
+  const handleClearTopic = () => {
+    setActiveTopic('');
+    updateUrlParams('', selectedCategory, search);
+  };
+
+  const handleSearchChange = (val) => {
+    setSearch(val);
+    updateUrlParams(activeTopic, selectedCategory, val);
+  };
+
+  const pendingUsers = allUsers.filter(u => connectionStatuses[u.id || u._id] === 'pending');
+
+  let filtered = [...allUsers];
+
+  // Client-side filters that aren't passed to the API
   // 3. Format Filter (Online vs In-person)
   if (selectedFormat !== 'All') {
     filtered = filtered.filter(u =>
@@ -76,11 +137,13 @@ export const PeopleDiscovery = () => {
 
   const resetFilters = () => {
     setSearch('');
+    setActiveTopic('');
     setSelectedCategory('All Categories');
     setSelectedFormat('All');
     setSelectedLevel('All');
     setSelectedAvailability('All');
     setMaxCredits('All');
+    setSearchParams(new URLSearchParams(), { replace: true });
   };
 
   return (
@@ -115,6 +178,22 @@ export const PeopleDiscovery = () => {
         </div>
       </div>
 
+      {/* Active Topic / Hashtag Filter Banner */}
+      {activeTopic && (
+        <div className="flex items-center justify-between p-3.5 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-200 text-xs font-semibold shadow-2xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
+            <span>Filtering students by topic: <strong className="text-teal-700 dark:text-teal-300 font-bold">#{activeTopic}</strong></span>
+          </div>
+          <button
+            onClick={handleClearTopic}
+            className="p-1 px-2 rounded-lg text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/50 transition-colors flex items-center gap-1 text-[11px] font-bold"
+          >
+            <X className="w-3.5 h-3.5" /> Clear topic filter
+          </button>
+        </div>
+      )}
+
       {/* Search & Quick Filters Bar */}
       <div className="flex flex-col sm:flex-row gap-2.5">
         <div className="flex-1 relative">
@@ -122,12 +201,12 @@ export const PeopleDiscovery = () => {
           <input
             type="text"
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => handleSearchChange(e.target.value)}
             placeholder="Search by skill (e.g. React, DSA, Figma), name, or college..."
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs outline-none focus:border-teal-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 shadow-xs"
           />
           {search && (
-            <button onClick={() => setSearch('')} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
+            <button onClick={() => handleSearchChange('')} className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">
               <X className="w-3.5 h-3.5" />
             </button>
           )}
@@ -154,7 +233,7 @@ export const PeopleDiscovery = () => {
         {SKILL_CATEGORIES.map(cat => (
           <button
             key={cat}
-            onClick={() => setSelectedCategory(cat)}
+            onClick={() => handleCategorySelect(cat)}
             className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all whitespace-nowrap ${
               selectedCategory === cat
                 ? 'bg-slate-900 dark:bg-slate-700 text-white border-slate-900 dark:border-slate-700 shadow-xs'
@@ -275,25 +354,49 @@ export const PeopleDiscovery = () => {
       )}
 
       {/* Grid of Results */}
-      {filtered.length > 0 ? (
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 border-2 border-teal-200 border-t-teal-600 rounded-full animate-spin"></div>
+        </div>
+      ) : filtered.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
           {filtered.map(person => (
-            <PersonCard key={person.id} person={person} showMatchInfo={true} />
+            <PersonCard key={person.id || person._id} person={person} showMatchInfo={true} />
           ))}
         </div>
       ) : (
-        <div className="py-20 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-8 shadow-soft">
+        <div className="py-20 text-center bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-soft space-y-3">
           <Search className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">No students found matching your criteria</h3>
-          <p className="text-xs text-slate-400 max-w-xs mx-auto mt-1 mb-4">
-            Try adjusting your search terms, changing the format filter, or clearing filters.
+          <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+            {activeTopic ? `No student peers found for #${activeTopic}` : 'No students found matching your criteria'}
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+            {activeTopic
+              ? `There are no student profiles teaching or learning #${activeTopic} right now. You can clear the topic filter or post a learning request so mentors can reach out.`
+              : 'Try adjusting your search terms, changing the format filter, or clearing filters.'}
           </p>
-          <button
-            onClick={resetFilters}
-            className="px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-bold hover:bg-teal-700"
-          >
-            Reset Filters
-          </button>
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+            {activeTopic && (
+              <button
+                onClick={handleClearTopic}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Clear #{activeTopic}
+              </button>
+            )}
+            <button
+              onClick={() => navigate('/requests')}
+              className="px-4 py-2 rounded-xl bg-teal-600 text-white text-xs font-bold hover:bg-teal-700 transition-colors shadow-xs"
+            >
+              Post Learning Request
+            </button>
+            <button
+              onClick={resetFilters}
+              className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            >
+              Reset All Filters
+            </button>
+          </div>
         </div>
       )}
       <AuthModal />

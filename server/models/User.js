@@ -5,7 +5,7 @@ const SkillOfferedSchema = new mongoose.Schema({
   name: { type: String, required: true },
   category: { type: String, default: 'General' },
   level: { type: String, enum: ['Beginner', 'Intermediate', 'Advanced', 'Expert'], default: 'Intermediate' },
-  evidenceStatus: { type: String, default: 'Peer-Reviewed' },
+  evidenceStatus: { type: String, default: 'Self-Declared' },
   evidenceUrl: { type: String, default: '' },
   endorsedCount: { type: Number, default: 0 }
 }, { _id: false });
@@ -23,10 +23,24 @@ const UserSchema = new mongoose.Schema({
   passwordHash: { type: String },
   phone: { type: String, sparse: true },
   avatar: { type: String, default: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80' },
+  coverImage: { type: String, default: '' },
   bio: { type: String, default: '' },
   college: { type: String, default: 'University' },
   branch: { type: String, default: 'Computer Science & Engineering' },
   year: { type: String, default: '1st Year' },
+  semester: { type: String, default: '' },
+  location: { type: String, default: 'Campus' },
+  learningGoals: { type: mongoose.Schema.Types.Mixed, default: '' },
+  interests: [{ type: String }],
+  preferredTeachingMethod: { type: String, default: 'Live Online Session' },
+  availableTimeSlots: { type: String, default: 'Evenings & Weekends' },
+  availableDays: [{ type: String }],
+  socialLinks: {
+    github: { type: String, default: '' },
+    linkedin: { type: String, default: '' },
+    portfolio: { type: String, default: '' },
+    projects: { type: String, default: '' }
+  },
   rating: { type: Number, default: 0 },
   reviewCount: { type: Number, default: 0 },
   teachingRating: { type: Number, default: 0 },
@@ -38,6 +52,8 @@ const UserSchema = new mongoose.Schema({
   spentTokens: { type: Number, default: 0 },
   hoursTaught: { type: Number, default: 0 },
   hoursLearned: { type: Number, default: 0 },
+  watchTimeMinutes: { type: Number, default: 0 },
+  watchTimeSeconds: { type: Number, default: 0 },
   completedSessionsCount: { type: Number, default: 0 },
   tasksApprovedCount: { type: Number, default: 0 },
   learningProgress: [{ type: Object }],
@@ -48,6 +64,12 @@ const UserSchema = new mongoose.Schema({
   availability: { type: String, default: 'Weekdays 5-8 PM' },
   sessionFormat: { type: String, default: 'Online' },
   languages: [{ type: String }],
+  following: [{ type: String }],
+  connections: [{
+    userId: { type: String, required: true },
+    status: { type: String, enum: ['pending', 'connected'], default: 'pending' },
+    initiatedByMe: { type: Boolean, default: true }
+  }],
   role: { type: String, enum: ['student', 'mentor', 'admin'], default: 'student' },
   verifiedStudent: { type: Boolean, default: true },
   createdAt: { type: Date, default: Date.now }
@@ -74,6 +96,7 @@ UserSchema.methods.comparePassword = async function(candidatePassword) {
 // Safe JSON serialization (strip passwordHash)
 UserSchema.methods.toSafeObject = function() {
   const obj = this.toObject ? this.toObject() : { ...this };
+  obj.id = obj._id ? obj._id.toString() : obj.id;
   delete obj.passwordHash;
   delete obj.__v;
   return obj;

@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import PersonCard from '../components/PersonCard';
 import { skillMatchingService } from '../services/skillMatchingService';
-import { MOCK_USERS, CURRENT_USER } from '../data/mockUsers';
 import { useApp } from '../context/AppContext';
 import { AuthModal } from '../components/auth/AuthModal';
 
@@ -22,7 +21,7 @@ export const ConnectHome = () => {
     const loadMatches = async () => {
       setLoading(true);
       try {
-        const matches = await skillMatchingService.getRankedMatches(currentUser || CURRENT_USER, MOCK_USERS);
+        const matches = await skillMatchingService.getRankedMatches(currentUser || null, null);
         setRankedMatches(matches);
         setMutualMatches(matches.filter(m => m.isMutualMatch));
       } catch (err) {

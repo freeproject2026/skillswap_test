@@ -29,7 +29,22 @@ export const AppProvider = ({ children }) => {
   const [dashboardPrefs, setDashboardPrefs] = useState(() => {
     try {
       const saved = localStorage.getItem('skillswap_dashboard_prefs');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          hero: true,
+          quickActions: true,
+          upcomingSessions: true,
+          creditsWallet: true,
+          learningProgress: true,
+          exploreSkills: true,
+          studentProfile: true,
+          recommendedStudents: true,
+          popularSkills: true,
+          communityPromo: true,
+          ...parsed
+        };
+      }
     } catch (e) {
       console.error('Failed to load dashboard prefs', e);
     }
@@ -75,7 +90,7 @@ export const AppProvider = ({ children }) => {
         if (user) {
           setCurrentUser(user);
           setIsGuest(false);
-          setTokens(user.tokens || 100);
+          setTokens(user.tokens ?? 0);
         } else {
           setCurrentUser(null);
           setIsGuest(true);
@@ -109,7 +124,7 @@ export const AppProvider = ({ children }) => {
     const user = await userService.login(email, password);
     setCurrentUser(user);
     setIsGuest(false);
-    setTokens(user.tokens || 100);
+    setTokens(user.tokens ?? 0);
     return user;
   };
 
@@ -117,7 +132,7 @@ export const AppProvider = ({ children }) => {
     const user = await userService.register(studentData);
     setCurrentUser(user);
     setIsGuest(false);
-    setTokens(user.tokens || 100);
+    setTokens(user.tokens ?? 0);
     return user;
   };
 
@@ -125,7 +140,7 @@ export const AppProvider = ({ children }) => {
     const user = await userService.loginWithPhone(phone, otp);
     setCurrentUser(user);
     setIsGuest(false);
-    setTokens(user.tokens || 100);
+    setTokens(user.tokens ?? 0);
     return user;
   };
 
