@@ -150,7 +150,8 @@ export const userService = {
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const res = await fetch('/api/users/avatar', {
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+    const res = await fetch(`${apiBase}/users/avatar`, {
       method: 'POST',
       headers,
       body: formData

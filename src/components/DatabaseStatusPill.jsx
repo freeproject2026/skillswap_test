@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Database, AlertCircle, RefreshCw } from 'lucide-react';
+import { apiClient } from '../services/api';
 
 export const DatabaseStatusPill = ({ compact = false }) => {
   const [dbState, setDbState] = useState({
@@ -12,16 +13,15 @@ export const DatabaseStatusPill = ({ compact = false }) => {
   const checkHealth = async () => {
     const start = Date.now();
     try {
-      const res = await fetch('/api/health', { method: 'GET', cache: 'no-store' });
+      const data = await apiClient.get('/health');
       const elapsed = Date.now() - start;
-      const data = await res.json().catch(() => ({}));
       
-      const isConnected = data.database?.status === 'connected' || data.database?.readyState === 1;
+      const isConnected = data && (data.database?.status === 'connected' || data.database?.readyState === 1 || data.status === 'ok');
       setDbState({
         status: isConnected ? 'connected' : 'disconnected',
-        dbName: data.database?.name || (isConnected ? 'skillswap' : null),
+        dbName: data?.database?.name || (isConnected ? 'skillswap' : null),
         latency: elapsed,
-        error: isConnected ? null : (data.database?.status || 'Database offline')
+        error: isConnected ? null : (data?.database?.status || 'Database offline')
       });
     } catch (err) {
       setDbState({
