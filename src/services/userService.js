@@ -1,4 +1,4 @@
-import { apiClient } from './api';
+import { apiClient, API_BASE_URL } from './api';
 
 const STORAGE_KEY_USER = 'skillswap_current_user';
 const STORAGE_KEY_AUTH_STATUS = 'skillswap_auth_status'; // 'authenticated' | 'guest'
@@ -150,8 +150,7 @@ export const userService = {
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    const res = await fetch(`${apiBase}/users/avatar`, {
+    const res = await fetch(`${API_BASE_URL}/users/avatar`, {
       method: 'POST',
       headers,
       body: formData

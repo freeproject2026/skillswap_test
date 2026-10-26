@@ -1,7 +1,8 @@
 // Central API client for SkillSwap frontend
 // Connects to Node.js / Express backend with token persistence and safe fallback
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const rawApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').trim().replace(/\/+$/, '');
+export const API_BASE_URL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
 
 export const simulateDelay = (ms = 180) => new Promise(resolve => setTimeout(resolve, ms));
 

@@ -47,7 +47,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Health Check with explicit database and service diagnostics
-app.get('/api/health', (req, res) => {
+const healthCheckHandler = (req, res) => {
   const readyState = mongoose.connection.readyState;
   const stateLabels = {
     0: 'disconnected',
@@ -70,7 +70,10 @@ app.get('/api/health', (req, res) => {
     },
     timestamp: new Date().toISOString()
   });
-});
+};
+
+app.get('/api/health', healthCheckHandler);
+app.get('/health', healthCheckHandler);
 
 // Interactive MongoDB Web Explorer
 app.get('/db', async (req, res) => {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Upload, Image, X, Check, AlertTriangle, Film } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { videoService } from '../services/videoService';
+import { API_BASE_URL } from '../services/api';
 import { CATEGORIES } from './VideoHome';
 import { AuthGate } from '../components/auth/AuthGate';
 import { AuthModal } from '../components/auth/AuthModal';
@@ -94,7 +95,7 @@ export const VideoUpload = () => {
 
         xhr.onerror = () => reject(new Error('Network error during upload.'));
 
-        xhr.open('POST', `${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/upload/video`);
+        xhr.open('POST', `${API_BASE_URL}/upload/video`);
         if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
         xhr.send(formData);
       });
