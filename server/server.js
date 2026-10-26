@@ -213,12 +213,28 @@ mongoose.connection.on('connected', () => {
   console.log(`✅ MongoDB connected successfully to database: "${mongoose.connection.name}".`);
 });
 
+let isReconnecting = false;
+let activeConnectDb = null;
+
 mongoose.connection.on('error', (err) => {
   console.error('❌ MongoDB runtime error:', err.message);
 });
 
 mongoose.connection.on('disconnected', () => {
   console.warn('⚠️ MongoDB connection lost. Disconnected.');
+  if (!isReconnecting && activeConnectDb) {
+    isReconnecting = true;
+    setTimeout(async () => {
+      try {
+        console.log('🔄 Attempting to re-establish MongoDB connection...');
+        await activeConnectDb();
+      } catch (rErr) {
+        console.error('Reconnect attempt error:', rErr.message);
+      } finally {
+        isReconnecting = false;
+      }
+    }, 2500);
+  }
 });
 
 mongoose.connection.on('reconnected', () => {
@@ -252,8 +268,10 @@ export async function startServer(uri = MONGODB_URI, port = PORT) {
       console.log('🔄 Connecting to MongoDB Atlas (URI configured)...');
       try {
         await mongoose.connect(uri, {
-          serverSelectionTimeoutMS: 5000,
-          connectTimeoutMS: 5000,
+          serverSelectionTimeoutMS: 15000,
+          connectTimeoutMS: 15000,
+          socketTimeoutMS: 45000,
+          maxPoolSize: 10,
           tls: true,
           retryWrites: true
         });
@@ -268,8 +286,10 @@ export async function startServer(uri = MONGODB_URI, port = PORT) {
       console.log('🔄 Connecting to MongoDB...');
       try {
         await mongoose.connect(uri, {
-          serverSelectionTimeoutMS: 5000,
-          connectTimeoutMS: 5000
+          serverSelectionTimeoutMS: 15000,
+          connectTimeoutMS: 15000,
+          socketTimeoutMS: 45000,
+          maxPoolSize: 10
         });
         console.log(`✅ MongoDB connected successfully to database: "${mongoose.connection.name}".`);
       } catch (err) {
@@ -278,6 +298,8 @@ export async function startServer(uri = MONGODB_URI, port = PORT) {
       }
     }
   };
+
+  activeConnectDb = connectDb;
 
   // Launch database connection asynchronously so HTTP server starts immediately
   connectDb().catch(e => console.error('Database connection error:', e));

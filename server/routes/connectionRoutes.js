@@ -45,22 +45,31 @@ router.post('/request/:targetUserId', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'User not found.' });
     }
 
-    // Set connection status on both users
-    const existingIdx = (user.connections || []).findIndex(c => c.userId === targetUserId);
-    if (existingIdx !== -1) {
-      user.connections[existingIdx].status = 'pending';
-    } else {
-      user.connections.push({ userId: targetUserId, status: 'pending', initiatedByMe: true });
-    }
-
-    const targetIdx = (targetUser.connections || []).findIndex(c => c.userId === userId);
-    if (targetIdx !== -1) {
-      targetUser.connections[targetIdx].status = 'pending';
-    } else {
-      targetUser.connections.push({ userId, status: 'pending', initiatedByMe: false });
-    }
-
-    await Promise.all([user.save(), targetUser.save()]);
+    // Set connection status on both users using atomic operators to prevent VersionError
+    await Promise.all([
+      User.updateOne(
+        { _id: userId },
+        {
+          $pull: { connections: { userId: targetUserId } }
+        }
+      ).then(() =>
+        User.updateOne(
+          { _id: userId },
+          { $push: { connections: { userId: targetUserId, status: 'pending', initiatedByMe: true } } }
+        )
+      ),
+      User.updateOne(
+        { _id: targetUserId },
+        {
+          $pull: { connections: { userId } }
+        }
+      ).then(() =>
+        User.updateOne(
+          { _id: targetUserId },
+          { $push: { connections: { userId, status: 'pending', initiatedByMe: false } } }
+        )
+      )
+    ]);
 
     res.json({ success: true, message: 'Connection request sent.' });
   } catch (err) {
@@ -75,22 +84,26 @@ router.post('/accept/:targetUserId', requireAuth, async (req, res) => {
     const userId = req.user.id;
     const { targetUserId } = req.params;
 
-    const [user, targetUser] = await Promise.all([
-      User.findById(userId),
-      User.findById(targetUserId)
+    await Promise.all([
+      User.updateOne(
+        { _id: userId },
+        { $pull: { connections: { userId: targetUserId } } }
+      ).then(() =>
+        User.updateOne(
+          { _id: userId },
+          { $push: { connections: { userId: targetUserId, status: 'connected', initiatedByMe: false } } }
+        )
+      ),
+      User.updateOne(
+        { _id: targetUserId },
+        { $pull: { connections: { userId } } }
+      ).then(() =>
+        User.updateOne(
+          { _id: targetUserId },
+          { $push: { connections: { userId, status: 'connected', initiatedByMe: true } } }
+        )
+      )
     ]);
-
-    if (!user || !targetUser) return res.status(404).json({ success: false, error: 'User not found.' });
-
-    const c1 = user.connections.find(c => c.userId === targetUserId);
-    if (c1) c1.status = 'connected';
-    else user.connections.push({ userId: targetUserId, status: 'connected', initiatedByMe: false });
-
-    const c2 = targetUser.connections.find(c => c.userId === userId);
-    if (c2) c2.status = 'connected';
-    else targetUser.connections.push({ userId, status: 'connected', initiatedByMe: true });
-
-    await Promise.all([user.save(), targetUser.save()]);
 
     res.json({ success: true, message: 'Connection accepted!' });
   } catch (err) {
@@ -105,19 +118,10 @@ router.post('/decline/:targetUserId', requireAuth, async (req, res) => {
     const userId = req.user.id;
     const { targetUserId } = req.params;
 
-    const [user, targetUser] = await Promise.all([
-      User.findById(userId),
-      User.findById(targetUserId)
+    await Promise.all([
+      User.updateOne({ _id: userId }, { $pull: { connections: { userId: targetUserId } } }),
+      User.updateOne({ _id: targetUserId }, { $pull: { connections: { userId } } })
     ]);
-
-    if (user) {
-      user.connections = (user.connections || []).filter(c => c.userId !== targetUserId);
-      await user.save();
-    }
-    if (targetUser) {
-      targetUser.connections = (targetUser.connections || []).filter(c => c.userId !== userId);
-      await targetUser.save();
-    }
 
     res.json({ success: true, message: 'Connection dismissed.' });
   } catch (err) {
@@ -136,23 +140,18 @@ router.post('/follow/:targetUserId', requireAuth, async (req, res) => {
     if (!user) return res.status(404).json({ success: false, error: 'User not found.' });
 
     const following = user.following || [];
-    const idx = following.indexOf(targetUserId);
-    let isNowFollowing = false;
+    const isNowFollowing = !following.includes(targetUserId);
 
-    if (idx === -1) {
-      user.following.push(targetUserId);
-      isNowFollowing = true;
-    } else {
-      user.following.splice(idx, 1);
-      isNowFollowing = false;
-    }
+    const updateOp = isNowFollowing
+      ? { $addToSet: { following: targetUserId } }
+      : { $pull: { following: targetUserId } };
 
-    await user.save();
+    const updated = await User.findByIdAndUpdate(userId, updateOp, { new: true });
 
     res.json({
       success: true,
       isFollowing: isNowFollowing,
-      following: user.following
+      following: updated?.following || []
     });
   } catch (err) {
     console.error('Toggle follow error:', err);
