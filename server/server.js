@@ -182,6 +182,7 @@ app.get('/db', async (req, res) => {
 
 // Serve uploaded video files as static assets
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Mount Core Application Routes
 app.use('/api/auth', authRoutes);

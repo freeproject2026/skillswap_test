@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Heart, Bookmark, Share2, Play, Clock, Eye, MessageCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { videoService } from '../services/videoService';
+import { resolveMediaUrl } from '../services/api';
+
+const DEFAULT_THUMBNAIL = 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80';
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80';
 
 export const VideoCard = ({ video, featured = false, compact = false }) => {
   const navigate = useNavigate();
@@ -43,14 +47,16 @@ export const VideoCard = ({ video, featured = false, compact = false }) => {
     }
   };
 
-  const openVideo = () => navigate(`/video/${video.id}`);
+  const openVideo = () => navigate(`/video/${video.id || video._id}`);
+  const thumbnailSrc = resolveMediaUrl(video.thumbnail || video.thumbnailUrl) || DEFAULT_THUMBNAIL;
+  const avatarSrc = resolveMediaUrl(video.creator?.avatar) || DEFAULT_AVATAR;
 
   if (featured) {
     return (
       <div onClick={openVideo} className="group relative w-full rounded-2xl overflow-hidden cursor-pointer shadow-card hover:shadow-float transition-all duration-300 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
         {/* Thumbnail area */}
         <div className="relative aspect-video overflow-hidden">
-          <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" loading="lazy" />
+          <img src={thumbnailSrc} alt={video.title} className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-500" loading="lazy" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
 
           {/* Play Button */}
@@ -84,7 +90,7 @@ export const VideoCard = ({ video, featured = false, compact = false }) => {
         {/* Info Strip */}
         <div className="flex items-center justify-between gap-3 px-4 py-3 bg-white dark:bg-slate-900 transition-colors">
           <div className="flex items-center gap-3 min-w-0">
-            <img src={video.creator.avatar} alt={video.creator.name} className="w-9 h-9 rounded-full object-cover ring-2 ring-teal-500/30 shrink-0" />
+            <img src={avatarSrc} alt={video.creator.name} className="w-9 h-9 rounded-full object-cover ring-2 ring-teal-500/30 shrink-0" />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 truncate">{video.creator.name}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
@@ -115,7 +121,7 @@ export const VideoCard = ({ video, featured = false, compact = false }) => {
     <div onClick={openVideo} className="group relative flex flex-col rounded-2xl overflow-hidden cursor-pointer bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 shadow-soft hover:shadow-card hover:border-slate-200 dark:hover:border-slate-700 transition-all duration-300 h-full">
       {/* Thumbnail */}
       <div className="relative aspect-video overflow-hidden">
-        <img src={video.thumbnail} alt={video.title} className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500" loading="lazy" />
+        <img src={thumbnailSrc} alt={video.title} className="w-full h-full object-cover group-hover:scale-[1.04] transition-transform duration-500" loading="lazy" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
         {/* Play button on hover */}
@@ -142,7 +148,7 @@ export const VideoCard = ({ video, featured = false, compact = false }) => {
       {/* Content */}
       <div className="flex flex-col flex-1 p-3 sm:p-3.5 bg-white dark:bg-slate-900 transition-colors">
         <div className="flex gap-2.5">
-          <img src={video.creator.avatar} alt={video.creator.name} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover ring-2 ring-slate-100 dark:ring-slate-800 shrink-0 mt-0.5" />
+          <img src={avatarSrc} alt={video.creator.name} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover ring-2 ring-slate-100 dark:ring-slate-800 shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
             <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
               {video.title}

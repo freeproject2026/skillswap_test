@@ -3,6 +3,21 @@
 
 const rawApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').trim().replace(/\/+$/, '');
 export const API_BASE_URL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
+export const BACKEND_URL = API_BASE_URL.replace(/\/api$/, '');
+
+/**
+ * Resolves media URLs (videos, thumbnails, avatars).
+ * If the URL is relative (e.g. /uploads/video.mp4), it prepends the backend host.
+ */
+export const resolveMediaUrl = (url) => {
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return trimmed;
+  }
+  const cleanPath = trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+  return `${BACKEND_URL}${cleanPath}`;
+};
 
 export const simulateDelay = (ms = 180) => new Promise(resolve => setTimeout(resolve, ms));
 

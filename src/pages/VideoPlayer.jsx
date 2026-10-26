@@ -8,6 +8,7 @@ import VideoCard from '../components/VideoCard';
 import { videoService } from '../services/videoService';
 import { useApp } from '../context/AppContext';
 import { AuthModal } from '../components/auth/AuthModal';
+import { resolveMediaUrl } from '../services/api';
 
 export const VideoPlayer = () => {
   const { id } = useParams();
@@ -220,12 +221,14 @@ export const VideoPlayer = () => {
       </div>
 
       {/* Video Player */}
-      <div className="w-full aspect-video bg-black rounded-none sm:rounded-2xl overflow-hidden sm:mx-6 sm:max-w-[calc(100%-3rem)] shadow-lg">
+      <div className="w-full aspect-video bg-black rounded-none sm:rounded-2xl overflow-hidden sm:mx-6 sm:max-w-[calc(100%-3rem)] shadow-lg relative">
         <video
           ref={videoRef}
-          src={video.videoUrl}
-          poster={video.thumbnail}
+          src={resolveMediaUrl(video.videoUrl)}
+          poster={resolveMediaUrl(video.thumbnail || video.thumbnailUrl)}
           controls
+          crossOrigin="anonymous"
+          playsInline
           className="w-full h-full object-contain"
           autoPlay={false}
           onTimeUpdate={handleTimeUpdate}
@@ -364,7 +367,7 @@ export const VideoPlayer = () => {
         {/* Creator Info */}
         <div className="flex items-center justify-between gap-3 py-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-3 min-w-0">
-            <img src={video.creator.avatar} alt={video.creator.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-teal-500/30 shrink-0" />
+            <img src={resolveMediaUrl(video.creator.avatar)} alt={video.creator.name} className="w-11 h-11 rounded-full object-cover ring-2 ring-teal-500/30 shrink-0" />
             <div className="min-w-0">
               <p className="text-sm font-bold text-slate-800 dark:text-slate-100 truncate">{video.creator.name}</p>
               <p className="text-xs text-slate-500 dark:text-slate-400">{video.creator.subscribers} subscribers</p>
