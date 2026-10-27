@@ -70,6 +70,7 @@ function AppContent() {
             {/* Connect & SkillSwap Section */}
             <Route path="/connect" element={<ConnectHome />} />
             <Route path="/connect/people" element={<PeopleDiscovery />} />
+            <Route path="/connect/chat" element={<ChatPage />} />
             <Route path="/connect/chat/:userId" element={<ChatPage />} />
             <Route path="/connect/network" element={<NetworkPage />} />
 

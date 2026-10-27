@@ -110,7 +110,42 @@ router.get('/profile', requireAuth, async (req, res) => {
  */
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
-    const user = await findUserById(req.params.id);
+    let user = await findUserById(req.params.id);
+    if (!user) {
+      const mockUsers = {
+        usr_1: {
+          id: 'usr_1',
+          name: 'Elena Rostova',
+          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=400&q=80',
+          title: 'Visual Computing Scholar & 3D Artist',
+          college: 'Stanford University',
+          branch: 'Computer Science',
+          tokensRate: 60,
+          status: 'online'
+        },
+        usr_2: {
+          id: 'usr_2',
+          name: 'Carlos Mendoza',
+          avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=400&q=80',
+          title: 'Spanish Language & Frontend Peer',
+          college: 'UC Berkeley',
+          branch: 'Linguistics & CS',
+          status: 'online'
+        },
+        usr_3: {
+          id: 'usr_3',
+          name: 'Dr. Priya Sharma',
+          avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=400&q=80',
+          title: 'AI Research Fellow',
+          college: 'MIT',
+          branch: 'Artificial Intelligence',
+          status: 'online'
+        }
+      };
+      if (mockUsers[req.params.id]) {
+        user = mockUsers[req.params.id];
+      }
+    }
     if (!user) {
       return res.status(404).json({ success: false, error: 'Student profile not found.' });
     }

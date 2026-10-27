@@ -7,6 +7,7 @@ import UpcomingSessionsCard from '../components/home/UpcomingSessionsCard';
 import CreditsWalletCard from '../components/home/CreditsWalletCard';
 import LearningProgressCard from '../components/home/LearningProgressCard';
 import StudentProfileCard from '../components/home/StudentProfileCard';
+import DashboardMessagesCard from '../components/home/DashboardMessagesCard';
 import RecommendedStudentsCard from '../components/home/RecommendedStudentsCard';
 import PopularSkillsCard from '../components/home/PopularSkillsCard';
 import CommunityPromoCard from '../components/home/CommunityPromoCard';
@@ -79,6 +80,9 @@ export const HomePage = () => {
               {dashboardPrefs.studentProfile !== false && (
                 <StudentProfileCard onEditProfile={() => setEditProfileOpen(true)} />
               )}
+
+              {/* Messages & Chat Conversations (Customizable) */}
+              {dashboardPrefs.messages !== false && <DashboardMessagesCard />}
 
               {/* Recommended Students (Customizable) */}
               {dashboardPrefs.recommendedStudents !== false && <RecommendedStudentsCard />}

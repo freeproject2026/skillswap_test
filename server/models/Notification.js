@@ -12,6 +12,8 @@ const NotificationSchema = new mongoose.Schema({
       'skill_swap_request',
       'session_completed',
       'token_credit',
+      'message',
+      'new_message',
       'general'
     ],
     required: true

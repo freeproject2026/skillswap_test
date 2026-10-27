@@ -13,6 +13,7 @@ const ICON_MAP = {
   token_credit: Coins,
   new_follower: Heart,
   message: MessageCircle,
+  new_message: MessageCircle,
   session_completed: Calendar,
   default: Bell,
 };
@@ -24,6 +25,7 @@ const COLOR_MAP = {
   token_credit: 'bg-amber-50 text-amber-600 border-amber-100',
   new_follower: 'bg-rose-50 text-rose-500 border-rose-100',
   message: 'bg-teal-50 text-teal-600 border-teal-100',
+  new_message: 'bg-teal-50 text-teal-600 border-teal-100',
   session_completed: 'bg-teal-50 text-teal-600 border-teal-100',
   default: 'bg-slate-50 text-slate-600 border-slate-100',
 };
@@ -35,22 +37,52 @@ export const NotificationItem = ({ notification, onMarkRead, onAccept, onDecline
 
   const handleClick = () => {
     if (onMarkRead) onMarkRead(notification.id);
+    
+    // Open the correct conversation for messages
+    const targetChatUserId =
+      notification.sender?.id ||
+      notification.metadata?.senderId ||
+      notification.data?.senderId ||
+      (notification.actionUrl && notification.actionUrl.startsWith('/connect/chat/')
+        ? notification.actionUrl.replace('/connect/chat/', '')
+        : null);
+
+    if (notification.type === 'message' || notification.type === 'new_message') {
+      if (targetChatUserId) {
+        navigate(`/connect/chat/${targetChatUserId}`);
+        return;
+      }
+    }
+
+    if (notification.actionUrl) {
+      navigate(notification.actionUrl);
+      return;
+    }
+
+    if (targetChatUserId) {
+      navigate(`/connect/chat/${targetChatUserId}`);
+      return;
+    }
+
     if (notification.userId) {
-      navigate(`/connect/chat/${notification.userId}`);
+      navigate('/connect/network');
     }
   };
+
+  const avatar = notification.sender?.avatar || notification.user?.avatar;
+  const bodyText = notification.message || notification.description || '';
 
   return (
     <div
       onClick={handleClick}
       className={`group relative flex items-start gap-3 p-3.5 sm:p-4 rounded-xl border cursor-pointer transition-all duration-200 ${
-        notification.isRead
+        notification.isRead || notification.read
           ? 'bg-white dark:bg-slate-850/60 border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800'
           : 'bg-teal-50/40 dark:bg-teal-950/30 border-teal-100/60 dark:border-teal-900/50 hover:bg-teal-50/60 dark:hover:bg-teal-950/50 shadow-sm'
       }`}
     >
       {/* Unread dot */}
-      {!notification.isRead && (
+      {!(notification.isRead || notification.read) && (
         <span className="absolute top-3 right-3 w-2.5 h-2.5 rounded-full bg-teal-500 shadow-sm animate-pulse"></span>
       )}
 
@@ -62,15 +94,15 @@ export const NotificationItem = ({ notification, onMarkRead, onAccept, onDecline
       {/* Content */}
       <div className="min-w-0 flex-1">
         <div className="flex items-start gap-2 mb-0.5">
-          {notification.user?.avatar && (
-            <img src={notification.user.avatar} alt="" className="w-6 h-6 rounded-full object-cover shrink-0 ring-1 ring-slate-100 dark:ring-slate-700" />
+          {avatar && (
+            <img src={avatar} alt="" className="w-6 h-6 rounded-full object-cover shrink-0 ring-1 ring-slate-100 dark:ring-slate-700" />
           )}
-          <p className={`text-sm font-semibold leading-snug ${notification.isRead ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-slate-100'}`}>
+          <p className={`text-sm font-semibold leading-snug ${notification.isRead || notification.read ? 'text-slate-700 dark:text-slate-300' : 'text-slate-900 dark:text-slate-100'}`}>
             {notification.title}
           </p>
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed line-clamp-2">
-          {notification.description}
+          {bodyText}
         </p>
 
         {/* Token Amount */}

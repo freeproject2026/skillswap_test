@@ -8,6 +8,7 @@ const MessageSchema = new mongoose.Schema({
   text: { type: String, default: '' },
   type: { type: String, enum: ['text', 'session_proposal', 'code', 'file', 'system'], default: 'text' },
   sessionData: { type: Object, default: null },
+  read: { type: Boolean, default: false },
   timestamp: { type: Date, default: Date.now }
 }, { _id: false });
 
@@ -24,6 +25,7 @@ ConversationSchema.methods.toSafeObject = function(currentUserId = null) {
   obj.id = obj._id ? obj._id.toString() : obj.id;
   if (currentUserId) {
     obj.participantId = (obj.participants || []).find(p => p !== currentUserId) || obj.participants?.[0];
+    obj.unreadCount = (obj.messages || []).filter(m => m.senderId !== currentUserId && !m.read).length;
   }
   // Sort messages chronologically
   if (obj.messages && Array.isArray(obj.messages)) {

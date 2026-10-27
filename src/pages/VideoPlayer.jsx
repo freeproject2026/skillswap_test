@@ -48,10 +48,14 @@ export const VideoPlayer = () => {
 
   const startBufferingTimeout = () => {
     if (bufferingTimeoutRef.current) clearTimeout(bufferingTimeoutRef.current);
-    // If still buffering after 15 seconds, show error instead of spinning forever
+    // If still buffering after 15 seconds while trying to play, show error instead of spinning forever
     bufferingTimeoutRef.current = setTimeout(() => {
-      setBuffering(false);
-      setPlaybackError('Video is taking too long to load. Check your connection or try again.');
+      if (videoRef.current && !videoRef.current.paused && videoRef.current.readyState < 3) {
+        setBuffering(false);
+        setPlaybackError('Video is taking too long to buffer. Check your connection or try again.');
+      } else {
+        setBuffering(false);
+      }
     }, 15000);
   };
 
@@ -253,13 +257,16 @@ export const VideoPlayer = () => {
           src={resolveMediaUrl(video.videoUrl)}
           poster={resolveMediaUrl(video.thumbnail || video.thumbnailUrl)}
           controls
+          preload="metadata"
           playsInline
           className="w-full h-full object-contain"
           autoPlay={false}
           onLoadStart={() => {
             setPlaybackError(null);
-            setBuffering(true);
-            startBufferingTimeout();
+          }}
+          onLoadedMetadata={() => {
+            clearBufferingTimeout();
+            setBuffering(false);
           }}
           onLoadedData={() => {
             clearBufferingTimeout();
@@ -277,6 +284,10 @@ export const VideoPlayer = () => {
             clearBufferingTimeout();
             setBuffering(false);
             setPlaybackError(null);
+          }}
+          onSeeked={() => {
+            clearBufferingTimeout();
+            setBuffering(false);
           }}
           onError={(e) => {
             console.error('Video error:', e);
@@ -296,8 +307,16 @@ export const VideoPlayer = () => {
             setPlaybackError(errMsg);
           }}
           onTimeUpdate={handleTimeUpdate}
-          onPause={handlePlaybackSync}
-          onEnded={handlePlaybackSync}
+          onPause={() => {
+            clearBufferingTimeout();
+            setBuffering(false);
+            handlePlaybackSync();
+          }}
+          onEnded={() => {
+            clearBufferingTimeout();
+            setBuffering(false);
+            handlePlaybackSync();
+          }}
         />
 
         {/* Buffering Indicator */}

@@ -218,10 +218,22 @@ const streamVideoFile = (filePath, req, res) => {
 
   if (range) {
     const parts = range.replace(/bytes=/, '').split('-');
-    const start = parseInt(parts[0], 10);
-    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    let start;
+    let end;
+    if (parts[0] === '' && parts[1]) {
+      // Suffix range (e.g. -1024 for last 1024 bytes)
+      const suffix = parseInt(parts[1], 10);
+      start = Math.max(0, fileSize - suffix);
+      end = fileSize - 1;
+    } else {
+      start = parseInt(parts[0], 10);
+      end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+    }
 
-    if (start >= fileSize || end >= fileSize) {
+    if (isNaN(start)) start = 0;
+    if (isNaN(end) || end >= fileSize) end = fileSize - 1;
+
+    if (start >= fileSize || start < 0) {
       res.status(416).header('Content-Range', `bytes */${fileSize}`).end();
       return;
     }
@@ -237,6 +249,10 @@ const streamVideoFile = (filePath, req, res) => {
 
     res.writeHead(206, head);
     file.pipe(res);
+    res.on('close', () => file.destroy());
+    file.on('error', () => {
+      if (!res.headersSent) res.status(500).end();
+    });
   } else {
     const head = {
       'Content-Length': fileSize,
@@ -244,7 +260,12 @@ const streamVideoFile = (filePath, req, res) => {
       'Accept-Ranges': 'bytes',
     };
     res.writeHead(200, head);
-    fs.createReadStream(filePath).pipe(res);
+    const file = fs.createReadStream(filePath);
+    file.pipe(res);
+    res.on('close', () => file.destroy());
+    file.on('error', () => {
+      if (!res.headersSent) res.status(500).end();
+    });
   }
 };
 

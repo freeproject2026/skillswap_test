@@ -17,12 +17,22 @@ export const chatService = {
     return res.message;
   },
 
+  getUnreadCount: async () => {
+    try {
+      const res = await apiClient.get('/chat/unread-count');
+      return res?.count || 0;
+    } catch {
+      return 0;
+    }
+  },
+
   /**
    * Poll for new messages since a given ISO timestamp.
    * Returns only messages newer than `since` (or all messages if since is null/undefined).
    */
   pollMessages: async (conversationId, since = null) => {
-    const query = since ? `?since=${encodeURIComponent(since)}` : '';
+    const sinceParam = since instanceof Date ? since.toISOString() : since;
+    const query = sinceParam ? `?since=${encodeURIComponent(sinceParam)}` : '';
     const res = await apiClient.get(`/chat/conversations/${conversationId}/messages${query}`);
     return {
       messages: res?.messages || [],

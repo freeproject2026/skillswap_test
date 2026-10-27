@@ -103,16 +103,21 @@ export const VideoHome = () => {
           <h1 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-slate-100">Discover Skills</h1>
           <span className="hidden sm:inline text-sm text-slate-400 dark:text-slate-400 ml-1">— Learn from the community</span>
         </div>
-        {/* Upload button — only for signed-in users */}
-        {currentUser && !isGuest && (
-          <Link
-            to="/upload"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors shadow-sm"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            Upload Video
-          </Link>
-        )}
+        {/* Prominent Video Upload Button */}
+        <Link
+          to="/upload"
+          onClick={(e) => {
+            if (!currentUser || isGuest) {
+              e.preventDefault();
+              setAuthModalOpen(true);
+            }
+          }}
+          className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 active:scale-98 text-white text-xs sm:text-sm font-bold transition-all shadow-md shadow-teal-500/25 hover:shadow-lg hover:shadow-teal-500/40 ring-1 ring-teal-400/40 shrink-0"
+          title="Upload a new learning video"
+        >
+          <Upload className="w-4 h-4 text-white shrink-0 stroke-[2.5]" />
+          <span>Upload Video</span>
+        </Link>
       </div>
 
       {/* Active Topic Filter Banner */}

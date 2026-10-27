@@ -6,9 +6,10 @@ import { useApp } from '../context/AppContext';
 import { AuthGate } from '../components/auth/AuthGate';
 import { AuthModal } from '../components/auth/AuthModal';
 
-const TABS = ['All', 'Unread', 'Connections', 'Sessions', 'Tokens'];
+const TABS = ['All', 'Unread', 'Messages', 'Connections', 'Sessions', 'Tokens'];
 
 const TAB_TYPE_MAP = {
+  Messages: ['message', 'new_message'],
   Connections: ['connection_request', 'new_follower'],
   Sessions: ['session_accepted', 'skill_swap_request', 'session_completed'],
   Tokens: ['token_credit']

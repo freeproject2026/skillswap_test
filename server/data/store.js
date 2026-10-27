@@ -26,7 +26,13 @@ export const findUserById = async (id) => {
   assertDbConnected();
   if (!id) return null;
   try {
-    return await User.findById(id);
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      const u = await User.findById(id);
+      if (u) return u;
+    }
+    const byIdOrUsername = await User.findOne({ $or: [{ id }, { _id: id }, { username: id }] });
+    if (byIdOrUsername) return byIdOrUsername;
+    return null;
   } catch {
     return null;
   }

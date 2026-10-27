@@ -52,12 +52,29 @@ export const ChatPage = () => {
       setLoading(false);
       return;
     }
+
     const load = async () => {
       setLoading(true);
       try {
+        let activeUserId = userId;
+        if (!activeUserId) {
+          try {
+            const convs = await chatService.getConversations();
+            if (convs && convs.length > 0) {
+              const firstPartnerId = convs[0].participant?.id || convs[0].participantId;
+              if (firstPartnerId) {
+                navigate(`/connect/chat/${firstPartnerId}`, { replace: true });
+                return;
+              }
+            }
+          } catch (_e) {}
+          // Fallback to default peer if no conversation yet
+          activeUserId = 'usr_1';
+        }
+
         const [u, conv] = await Promise.all([
-          userService.getUserById(userId),
-          chatService.getConversationByUserId(userId)
+          userService.getUserById(activeUserId),
+          chatService.getConversationByUserId(activeUserId)
         ]);
         setUser(u);
         setConversation(conv);
@@ -80,21 +97,21 @@ export const ChatPage = () => {
     };
     load();
 
-    // Cleanup polling on unmount or userId change
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
-  }, [userId, isGuest, currentUser]);
+  }, [userId, isGuest, currentUser, navigate]);
 
-  // Start polling once conversation is loaded
+  // Start polling for real-time automatic message updates
   useEffect(() => {
-    if (!conversationIdRef.current || isGuest || !currentUser) return;
+    const convId = conversation?.id || conversation?._id || conversationIdRef.current;
+    if (!convId || isGuest || !currentUser) return;
 
     const poll = async () => {
       try {
         const since = lastMessageAtRef.current;
         const { messages: newMsgs, lastMessageAt } = await chatService.pollMessages(
-          conversationIdRef.current,
+          convId,
           since
         );
         if (newMsgs && newMsgs.length > 0) {
@@ -102,16 +119,16 @@ export const ChatPage = () => {
           lastMessageAtRef.current = lastMessageAt || newMsgs[newMsgs.length - 1]?.timestamp;
         }
       } catch (_e) {
-        // Silently ignore polling errors (network hiccups)
+        // Silently ignore polling errors
       }
     };
 
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-    pollIntervalRef.current = setInterval(poll, POLL_INTERVAL);
+    pollIntervalRef.current = setInterval(poll, 2500);
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
-  }, [conversation, isGuest, currentUser, mergeMessages]);
+  }, [conversation?.id, conversation?._id, isGuest, currentUser, mergeMessages]);
 
   // Auto-scroll to latest message
   useEffect(() => {

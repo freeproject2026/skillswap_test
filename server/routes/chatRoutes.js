@@ -1,21 +1,145 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { Conversation } from '../models/Conversation.js';
+import { Notification } from '../models/Notification.js';
 import { findUserById } from '../data/store.js';
 
 const router = express.Router();
 
+// Fallback directory for known mock peers
+const KNOWN_PEERS = {
+  usr_1: {
+    id: 'usr_1',
+    name: 'Elena Rostova',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
+    college: 'Stanford University',
+    branch: 'Computer Science',
+    status: 'online'
+  },
+  usr_2: {
+    id: 'usr_2',
+    name: 'Carlos Mendoza',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
+    college: 'UC Berkeley',
+    branch: 'Linguistics & CS',
+    status: 'online'
+  },
+  usr_3: {
+    id: 'usr_3',
+    name: 'Dr. Priya Sharma',
+    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80',
+    college: 'MIT',
+    branch: 'Artificial Intelligence',
+    status: 'online'
+  }
+};
+
+const resolveParticipant = async (participantId) => {
+  if (!participantId) return null;
+  try {
+    const userDoc = await findUserById(participantId);
+    if (userDoc) {
+      return {
+        id: userDoc.id || userDoc._id?.toString(),
+        name: userDoc.name,
+        avatar: userDoc.avatar || '',
+        college: userDoc.college || 'Student',
+        branch: userDoc.branch || '',
+        status: 'online'
+      };
+    }
+  } catch (_e) {
+    // Non-fatal
+  }
+  return KNOWN_PEERS[participantId] || {
+    id: participantId,
+    name: 'Campus Student',
+    avatar: '',
+    college: 'Student',
+    branch: '',
+    status: 'online'
+  };
+};
+
+// GET /api/chat/unread-count – Total unread messages count for current user
+router.get('/unread-count', requireAuth, async (req, res) => {
+  try {
+    const userId = String(req.user.id);
+    const convs = await Conversation.find({ participants: userId });
+    let unreadCount = 0;
+    for (const c of convs) {
+      for (const m of (c.messages || [])) {
+        if (String(m.senderId) !== userId && !m.read) {
+          unreadCount++;
+        }
+      }
+    }
+    res.json({ success: true, count: unreadCount });
+  } catch (err) {
+    console.error('Chat unread count error:', err);
+    res.status(500).json({ success: false, count: 0 });
+  }
+});
+
 // GET /api/chat/conversations – List conversations for current user
 router.get('/conversations', requireAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const conversations = await Conversation.find({
+    const userId = String(req.user.id);
+    let conversations = await Conversation.find({
       participants: userId
     }).sort({ lastMessageAt: -1 });
 
+    // If user has no conversations yet, seed initial conversation with Elena Rostova (usr_1)
+    if (conversations.length === 0 && userId !== 'usr_1') {
+      try {
+        const seedPartner = 'usr_1';
+        const initialConv = new Conversation({
+          participants: [userId, seedPartner],
+          lastMessage: 'I reviewed your Three.js shaders draft. The lighting coordinates look so much smoother now!',
+          lastMessageAt: new Date(Date.now() - 12 * 60 * 1000),
+          messages: [
+            {
+              id: `msg_seed_1_${userId}`,
+              senderId: userId,
+              senderName: req.user.name || 'You',
+              senderAvatar: req.user.avatar || '',
+              text: 'Hi Elena! I loved your Three.js video tutorial. I am working on an interactive 3D particle canvas and hitting an issue with GLSL shaders.',
+              type: 'text',
+              read: true,
+              timestamp: new Date(Date.now() - 60 * 60 * 1000)
+            },
+            {
+              id: `msg_seed_2_${userId}`,
+              senderId: seedPartner,
+              senderName: 'Elena Rostova',
+              senderAvatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
+              text: 'I reviewed your Three.js shaders draft. The lighting coordinates look so much smoother now!',
+              type: 'text',
+              read: false,
+              timestamp: new Date(Date.now() - 12 * 60 * 1000)
+            }
+          ]
+        });
+        await initialConv.save();
+        conversations = await Conversation.find({ participants: userId }).sort({ lastMessageAt: -1 });
+      } catch (seedErr) {
+        console.warn('Initial conversation seed warning:', seedErr.message);
+      }
+    }
+
+    // Attach populated participant details and compute unread counts
+    const populated = await Promise.all(
+      conversations.map(async (c) => {
+        const safe = c.toSafeObject(userId);
+        const participantId = safe.participantId;
+        safe.participant = await resolveParticipant(participantId);
+        return safe;
+      })
+    );
+
     res.json({
       success: true,
-      conversations: conversations.map(c => c.toSafeObject(userId))
+      conversations: populated
     });
   } catch (err) {
     console.error('List conversations error:', err);
@@ -26,7 +150,7 @@ router.get('/conversations', requireAuth, async (req, res) => {
 // GET /api/chat/conversations/:participantId – Get or initialize conversation with a user
 router.get('/conversations/:participantId', requireAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = String(req.user.id);
     const { participantId } = req.params;
 
     let conv = await Conversation.findOne({
@@ -41,11 +165,26 @@ router.get('/conversations/:participantId', requireAuth, async (req, res) => {
         messages: []
       });
       await conv.save();
+    } else {
+      // Mark messages received from participant as read
+      let modified = false;
+      (conv.messages || []).forEach(m => {
+        if (String(m.senderId) !== userId && !m.read) {
+          m.read = true;
+          modified = true;
+        }
+      });
+      if (modified) {
+        await conv.save();
+      }
     }
+
+    const safe = conv.toSafeObject(userId);
+    safe.participant = await resolveParticipant(participantId);
 
     res.json({
       success: true,
-      conversation: conv.toSafeObject(userId)
+      conversation: safe
     });
   } catch (err) {
     console.error('Get conversation error:', err);
@@ -56,17 +195,29 @@ router.get('/conversations/:participantId', requireAuth, async (req, res) => {
 /**
  * GET /api/chat/conversations/:id/messages
  * Poll for messages. Supports ?since=<ISO timestamp> to return only new messages.
- * Used by the frontend for real-time polling fallback.
+ * Automatically marks incoming messages as read when fetched.
  */
 router.get('/conversations/:id/messages', requireAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = String(req.user.id);
     const conv = await Conversation.findById(req.params.id);
     if (!conv) {
       return res.status(404).json({ success: false, error: 'Conversation not found.' });
     }
     if (!conv.participants.includes(userId)) {
       return res.status(403).json({ success: false, error: 'Unauthorized to read this conversation.' });
+    }
+
+    // Mark incoming unread messages as read
+    let modified = false;
+    (conv.messages || []).forEach(m => {
+      if (String(m.senderId) !== userId && !m.read) {
+        m.read = true;
+        modified = true;
+      }
+    });
+    if (modified) {
+      await conv.save();
     }
 
     const safe = conv.toSafeObject(userId);
@@ -95,10 +246,10 @@ router.get('/conversations/:id/messages', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/chat/conversations/:id/messages – Send a message
+// POST /api/chat/conversations/:id/messages – Send a message & dispatch in-app notification
 router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = String(req.user.id);
     const { text, type, sessionData } = req.body;
 
     if (!text && !sessionData) {
@@ -115,7 +266,7 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
     }
 
     // Fetch sender info to embed name & avatar in the message record
-    let senderName = req.user.name || '';
+    let senderName = req.user.name || 'Peer';
     let senderAvatar = req.user.avatar || '';
     try {
       const senderUser = await findUserById(userId);
@@ -124,7 +275,7 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
         senderAvatar = senderUser.avatar || senderAvatar;
       }
     } catch (_e) {
-      // Non-fatal – message still sends even if user lookup fails
+      // Non-fatal
     }
 
     const newMsg = {
@@ -135,6 +286,7 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
       text: text || '',
       type: type || 'text',
       sessionData: sessionData || null,
+      read: false,
       timestamp: new Date()
     };
 
@@ -143,6 +295,35 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
     conv.lastMessageAt = new Date();
 
     await conv.save();
+
+    // Create in-app notification for the recipient so they get notified with unread counts
+    const recipientId = conv.participants.find(p => String(p) !== userId);
+    if (recipientId) {
+      try {
+        const notifTitle = `New message from ${senderName}`;
+        const notifBody = text ? (text.length > 80 ? text.slice(0, 77) + '...' : text) : 'Sent a session proposal';
+        await Notification.create({
+          userId: String(recipientId),
+          type: 'message',
+          title: notifTitle,
+          message: notifBody,
+          read: false,
+          actionUrl: `/connect/chat/${userId}`,
+          sender: {
+            id: userId,
+            name: senderName,
+            avatar: senderAvatar
+          },
+          metadata: {
+            conversationId: conv.id || conv._id?.toString(),
+            senderId: userId,
+            messageId: newMsg.id
+          }
+        });
+      } catch (notifErr) {
+        console.warn('Failed to dispatch message notification:', notifErr.message);
+      }
+    }
 
     res.status(201).json({
       success: true,

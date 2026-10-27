@@ -102,8 +102,12 @@ export const AppProvider = ({ children }) => {
         const followings = await connectionService.getFollowingIds();
         setFollowingIds(followings);
 
-        const notifCount = await notificationService.getUnreadCount();
+        const [notifCount, msgCount] = await Promise.all([
+          notificationService.getUnreadCount(),
+          chatService.getUnreadCount()
+        ]);
         setUnreadNotifications(notifCount);
+        setUnreadMessages(msgCount);
       } catch (err) {
         console.error('Failed to initialize app state:', err);
       } finally {
@@ -112,6 +116,22 @@ export const AppProvider = ({ children }) => {
     };
     initApp();
   }, []);
+
+  // Periodic polling for unread notifications and messages
+  useEffect(() => {
+    if (isGuest || !currentUser) return;
+    const interval = setInterval(async () => {
+      try {
+        const [notifCount, msgCount] = await Promise.all([
+          notificationService.getUnreadCount(),
+          chatService.getUnreadCount()
+        ]);
+        setUnreadNotifications(notifCount);
+        setUnreadMessages(msgCount);
+      } catch (_e) {}
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [isGuest, currentUser]);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type, id: Date.now() });
@@ -214,8 +234,28 @@ export const AppProvider = ({ children }) => {
   };
 
   const refreshNotificationCount = async () => {
-    const count = await notificationService.getUnreadCount();
-    setUnreadNotifications(count);
+    try {
+      const count = await notificationService.getUnreadCount();
+      setUnreadNotifications(count);
+    } catch (_e) {}
+  };
+
+  const refreshUnreadMessagesCount = async () => {
+    try {
+      const count = await chatService.getUnreadCount();
+      setUnreadMessages(count);
+    } catch (_e) {}
+  };
+
+  const refreshUnreadCounts = async () => {
+    try {
+      const [notifCount, msgCount] = await Promise.all([
+        notificationService.getUnreadCount(),
+        chatService.getUnreadCount()
+      ]);
+      setUnreadNotifications(notifCount);
+      setUnreadMessages(msgCount);
+    } catch (_e) {}
   };
 
   return (
@@ -247,6 +287,9 @@ export const AppProvider = ({ children }) => {
         setUnreadNotifications,
         refreshNotificationCount,
         unreadMessages,
+        setUnreadMessages,
+        refreshUnreadMessagesCount,
+        refreshUnreadCounts,
         followingIds,
         toggleFollow: handleToggleFollow,
         connectionStatuses,

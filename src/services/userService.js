@@ -61,10 +61,19 @@ export const userService = {
     if (currentUser && (id === currentUser.id || id === currentUser._id || id === 'me')) {
       return { ...currentUser };
     }
-    const res = await apiClient.get(`/users/${id}`);
-    if (res?.success && res.user) {
-      return res.user;
+    try {
+      const res = await apiClient.get(`/users/${id}`);
+      if (res?.success && res.user) {
+        return res.user;
+      }
+    } catch (_err) {
+      const { MOCK_USERS } = await import('../data/mockUsers.js');
+      const foundMock = MOCK_USERS.find(u => u.id === id);
+      if (foundMock) return { ...foundMock };
     }
+    const { MOCK_USERS } = await import('../data/mockUsers.js');
+    const foundMock = MOCK_USERS.find(u => u.id === id);
+    if (foundMock) return { ...foundMock };
     throw new Error('Student profile not found');
   },
 

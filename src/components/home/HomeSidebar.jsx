@@ -25,7 +25,7 @@ export const HomeSidebar = ({ mobileOpen, setMobileOpen }) => {
       id: 'messages',
       label: 'Messages',
       icon: MessageSquare,
-      path: '/connect/chat/usr_1',
+      path: '/connect/chat',
       badge: unreadMessages > 0 ? unreadMessages : null,
       badgeColor: 'bg-teal-500'
     },
