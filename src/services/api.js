@@ -1,7 +1,14 @@
 // Central API client for SkillSwap frontend
 // Connects to Node.js / Express backend with token persistence and safe fallback
 
-const rawApiUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000/api').trim().replace(/\/+$/, '');
+const defaultApiUrl =
+  typeof window !== 'undefined' &&
+  window.location.hostname !== 'localhost' &&
+  window.location.hostname !== '127.0.0.1'
+    ? 'https://skillswap-test.onrender.com/api'
+    : 'http://localhost:5000/api';
+
+const rawApiUrl = (import.meta.env.VITE_API_URL || defaultApiUrl).trim().replace(/\/+$/, '');
 export const API_BASE_URL = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
 export const BACKEND_URL = API_BASE_URL.replace(/\/api$/, '');
 
