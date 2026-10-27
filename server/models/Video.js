@@ -61,6 +61,10 @@ VideoSchema.methods.toSafeObject = function(currentUserId = null) {
   obj.userRating = currentUserId && this.ratings
     ? (this.ratings.find(r => String(r.userId) === String(currentUserId))?.rating || null)
     : null;
+  // Normalize any hardcoded localhost URLs to relative path so client resolves to active backend
+  if (typeof obj.videoUrl === 'string' && /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)$/i.test(obj.videoUrl)) {
+    obj.videoUrl = obj.videoUrl.replace(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i, '');
+  }
   delete obj.__v;
   return obj;
 };

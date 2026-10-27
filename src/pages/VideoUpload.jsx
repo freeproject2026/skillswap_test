@@ -20,6 +20,7 @@ export const VideoUpload = () => {
   const [skills, setSkills] = useState('');
   const [visibility, setVisibility] = useState('public');
   const [videoFile, setVideoFile] = useState(null);
+  const [thumbFile, setThumbFile] = useState(null);
   const [thumbPreview, setThumbPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -47,6 +48,7 @@ export const VideoUpload = () => {
   const handleThumbSelect = (e) => {
     const file = e.target.files?.[0];
     if (file) {
+      setThumbFile(file);
       const url = URL.createObjectURL(file);
       setThumbPreview(url);
     }
@@ -64,6 +66,7 @@ export const VideoUpload = () => {
       // Build multipart form data
       const formData = new FormData();
       formData.append('video', videoFile);
+      if (thumbFile) formData.append('thumbnail', thumbFile);
       formData.append('title', title.trim());
       formData.append('description', description.trim());
       formData.append('category', category);
@@ -120,7 +123,7 @@ export const VideoUpload = () => {
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">Your video is ready and visible to your selected audience.</p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
           <button onClick={() => navigate('/videos')} className="px-6 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 transition-colors shadow-xs">View Videos</button>
-          <button onClick={() => { setDone(false); setTitle(''); setDescription(''); setVideoFile(null); setThumbPreview(null); setSkills(''); setProgress(0); }} className="px-6 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors">Upload Another</button>
+          <button onClick={() => { setDone(false); setTitle(''); setDescription(''); setVideoFile(null); setThumbFile(null); setThumbPreview(null); setSkills(''); setProgress(0); }} className="px-6 py-2.5 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60 transition-colors">Upload Another</button>
         </div>
         <AuthModal />
       </div>

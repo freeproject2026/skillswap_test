@@ -44,14 +44,17 @@ export const userService = {
         saveState();
         return { ...currentUser };
       }
-    } catch {
-      // Invalid/expired token
       currentUser = null;
+      localStorage.removeItem(STORAGE_KEY_TOKEN);
+      saveState();
+      return null;
+    } catch (err) {
+      // If unauthorized / token invalid / user deleted, invalidate state
+      currentUser = null;
+      localStorage.removeItem(STORAGE_KEY_TOKEN);
       saveState();
       return null;
     }
-
-    return currentUser ? { ...currentUser } : null;
   },
 
   getUserById: async (id) => {

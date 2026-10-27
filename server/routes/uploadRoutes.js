@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { requireAuth } from '../middleware/auth.js';
-import { createVideo } from '../data/store.js';
+import { createVideo, findUserById } from '../data/store.js';
 
 const router = express.Router();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -19,16 +19,27 @@ const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
   filename: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `vid_${Date.now()}${ext}`);
+    const prefix = file.fieldname === 'thumbnail' ? 'thumb_' : 'vid_';
+    cb(null, `${prefix}${Date.now()}_${Math.random().toString(36).slice(2, 7)}${ext}`);
   }
 });
 
-// Only allow video mime types
+// Allow video and image mime types based on field
 const fileFilter = (_req, file, cb) => {
-  if (file.mimetype.startsWith('video/')) {
-    cb(null, true);
+  if (file.fieldname === 'video') {
+    if (file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only video files are allowed for video (MP4, WebM, MOV, AVI, MKV).'), false);
+    }
+  } else if (file.fieldname === 'thumbnail') {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed for thumbnail (JPEG, PNG, WebP).'), false);
+    }
   } else {
-    cb(new Error('Only video files are allowed (MP4, WebM, MOV, AVI, MKV).'), false);
+    cb(null, true);
   }
 };
 
@@ -38,14 +49,20 @@ const upload = multer({
   limits: { fileSize: 500 * 1024 * 1024 } // 500 MB max
 });
 
+const uploadFields = upload.fields([
+  { name: 'video', maxCount: 1 },
+  { name: 'thumbnail', maxCount: 1 }
+]);
+
 /**
  * POST /api/upload/video
  * Accepts multipart/form-data with fields:
  *   - video  (file, required)
+ *   - thumbnail (file, optional)
  *   - title, description, category, skills, visibility, level, language (text)
  */
 router.post('/video', requireAuth, (req, res) => {
-  upload.single('video')(req, res, async (err) => {
+  uploadFields(req, res, async (err) => {
     // Handle multer errors (file type, size, etc.)
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
@@ -54,27 +71,28 @@ router.post('/video', requireAuth, (req, res) => {
       return res.status(400).json({ success: false, error: err.message || 'File upload error.' });
     }
 
-    if (!req.file) {
+    const videoFile = req.files?.video?.[0] || req.file;
+    const thumbFile = req.files?.thumbnail?.[0];
+
+    if (!videoFile) {
       return res.status(400).json({ success: false, error: 'No video file provided.' });
     }
 
     const { title, description, category, skills, visibility, level, language } = req.body;
 
     if (!title || !title.trim()) {
-      // Delete uploaded file if validation fails
-      fs.unlinkSync(req.file.path);
+      if (fs.existsSync(videoFile.path)) fs.unlinkSync(videoFile.path);
+      if (thumbFile && fs.existsSync(thumbFile.path)) fs.unlinkSync(thumbFile.path);
       return res.status(400).json({ success: false, error: 'Title is required.' });
     }
 
     try {
-      const user = req.user;
-
-      // Build a publicly accessible URL for the video
-      // In production, replace this with your CDN/cloud storage URL
-      const videoUrl = `/uploads/${req.file.filename}`;
+      const userDoc = await findUserById(req.user.id);
+      const videoUrl = `/uploads/${videoFile.filename}`;
+      const thumbnailUrl = thumbFile ? `/uploads/${thumbFile.filename}` : '';
 
       const skillsTaught = skills
-        ? skills.split(',').map(s => s.trim()).filter(Boolean)
+        ? (Array.isArray(skills) ? skills : skills.split(',').map(s => s.trim()).filter(Boolean))
         : [];
 
       const videoData = {
@@ -82,10 +100,10 @@ router.post('/video', requireAuth, (req, res) => {
         description: description?.trim() || '',
         category: category || 'Education',
         videoUrl,
-        thumbnailUrl: '',
-        fileName: req.file.originalname,
-        fileSize: req.file.size,
-        mimeType: req.file.mimetype,
+        thumbnailUrl,
+        fileName: videoFile.originalname,
+        fileSize: videoFile.size,
+        mimeType: videoFile.mimetype,
         skillsTaught,
         level: level || 'Beginner',
         language: language || 'English',
@@ -94,19 +112,19 @@ router.post('/video', requireAuth, (req, res) => {
         views: 0,
         likes: 0,
         creator: {
-          id: user.id,
-          name: user.name,
-          username: user.username || '',
-          avatar: user.avatar || '',
-          college: user.college || '',
-          branch: user.branch || ''
+          id: req.user.id,
+          name: userDoc?.name || req.user.name || 'Student Creator',
+          username: userDoc?.username || req.user.username || '',
+          avatar: userDoc?.avatar || req.user.avatar || '',
+          college: userDoc?.college || 'Campus Student',
+          branch: userDoc?.branch || 'General Studies'
         }
       };
 
       const video = await createVideo(videoData);
 
       const safe = typeof video.toObject === 'function' && video.toSafeObject
-        ? video.toSafeObject(user.id)
+        ? video.toSafeObject(req.user.id)
         : video;
 
       res.status(201).json({
@@ -115,8 +133,8 @@ router.post('/video', requireAuth, (req, res) => {
         video: safe
       });
     } catch (dbErr) {
-      // If DB save fails, clean up the uploaded file
-      fs.unlinkSync(req.file.path);
+      if (fs.existsSync(videoFile.path)) fs.unlinkSync(videoFile.path);
+      if (thumbFile && fs.existsSync(thumbFile.path)) fs.unlinkSync(thumbFile.path);
       console.error('Video DB save error:', dbErr);
       res.status(500).json({ success: false, error: 'Failed to save video record. Upload rolled back.' });
     }

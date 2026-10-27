@@ -7,11 +7,22 @@ export const BACKEND_URL = API_BASE_URL.replace(/\/api$/, '');
 
 /**
  * Resolves media URLs (videos, thumbnails, avatars).
- * If the URL is relative (e.g. /uploads/video.mp4), it prepends the backend host.
+ * Normalizes local or relative URLs to use the current BACKEND_URL,
+ * while preserving valid remote cloud URLs (S3, GCS, CDNs, data/blob URIs).
  */
 export const resolveMediaUrl = (url) => {
   if (!url || typeof url !== 'string') return '';
   const trimmed = url.trim();
+  if (!trimmed) return '';
+
+  // If URL contains localhost or 127.0.0.1 (e.g. from local development or DB record),
+  // rewrite it to use the current environment's BACKEND_URL so it plays in deployed environments.
+  const localhostMatch = trimmed.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)$/i);
+  if (localhostMatch) {
+    const relativePath = localhostMatch[3];
+    return `${BACKEND_URL}${relativePath}`;
+  }
+
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
     return trimmed;
   }
@@ -34,20 +45,18 @@ const getAuthHeaders = () => {
 
 export const apiClient = {
   get: async (endpoint) => {
-    try {
-      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
-        method: 'GET',
-        headers: getAuthHeaders()
-      });
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Request failed with status ${res.status}`);
-      }
-      return await res.json();
-    } catch (err) {
-      console.warn(`[apiClient GET fallback] ${endpoint}:`, err.message);
-      return null;
+    const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    });
+    const resData = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const error = new Error(resData.error || `Request failed with status ${res.status}`);
+      error.status = res.status;
+      error.data = resData;
+      throw error;
     }
+    return resData;
   },
 
   post: async (endpoint, data) => {

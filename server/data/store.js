@@ -18,11 +18,13 @@ const assertDbConnected = () => {
 
 export const findUserByEmail = async (email) => {
   assertDbConnected();
-  return User.findOne({ email: email.toLowerCase() });
+  if (!email || typeof email !== 'string') return null;
+  return User.findOne({ email: email.toLowerCase().trim() });
 };
 
 export const findUserById = async (id) => {
   assertDbConnected();
+  if (!id) return null;
   try {
     return await User.findById(id);
   } catch {
@@ -32,19 +34,26 @@ export const findUserById = async (id) => {
 
 export const findUserByPhone = async (phone) => {
   assertDbConnected();
-  return User.findOne({ phone });
+  if (!phone || typeof phone !== 'string') return null;
+  return User.findOne({ phone: phone.trim() });
+};
+
+export const findUserByUsername = async (username) => {
+  assertDbConnected();
+  if (!username || typeof username !== 'string') return null;
+  return User.findOne({ username: username.toLowerCase().trim() });
 };
 
 export const createUser = async (userData) => {
   assertDbConnected();
-  let passwordHash = userData.passwordHash;
-  if (userData.password && !passwordHash) {
-    const salt = await bcrypt.genSalt(10);
-    passwordHash = await bcrypt.hash(userData.password, salt);
-  }
+  const normalizedEmail = userData.email ? userData.email.toLowerCase().trim() : '';
+  const normalizedPhone = userData.phone ? userData.phone.trim() : undefined;
+  const passwordHash = userData.passwordHash || userData.password;
 
   const newUser = new User({
     ...userData,
+    email: normalizedEmail,
+    phone: normalizedPhone,
     passwordHash,
     rating: 0,
     reviewCount: 0,

@@ -21,7 +21,7 @@ const UserSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   username: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
   passwordHash: { type: String },
-  phone: { type: String, sparse: true },
+  phone: { type: String, unique: true, sparse: true, trim: true },
   avatar: { type: String, default: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80' },
   coverImage: { type: String, default: '' },
   bio: { type: String, default: '' },
@@ -75,9 +75,13 @@ const UserSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Hash password before saving
+// Hash password before saving (prevents double-hashing if already hashed)
 UserSchema.pre('save', async function(next) {
   if (!this.isModified('passwordHash') || !this.passwordHash) return next();
+  // If it's already a valid bcrypt hash, don't re-hash it!
+  if (/^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(this.passwordHash)) {
+    return next();
+  }
   try {
     const salt = await bcrypt.genSalt(10);
     this.passwordHash = await bcrypt.hash(this.passwordHash, salt);

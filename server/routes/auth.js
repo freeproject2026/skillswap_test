@@ -1,7 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { findUserByEmail, findUserById, findUserByPhone, createUser } from '../data/store.js';
+import { findUserByEmail, findUserById, findUserByPhone, findUserByUsername, createUser } from '../data/store.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -26,7 +26,7 @@ const generateToken = (user) => {
  */
 router.post('/register', async (req, res) => {
   try {
-    const { name, email, password, college, branch, year, semester, skillsOffered, skillsWanted, bio, languages, interests } = req.body;
+    const { name, email, password, phone, college, branch, year, semester, skillsOffered, skillsWanted, bio, languages, interests } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -42,12 +42,32 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    const existingUser = await findUserByEmail(email);
+    const normalizedEmail = email.trim().toLowerCase();
+    const existingUser = await findUserByEmail(normalizedEmail);
     if (existingUser) {
       return res.status(409).json({
         success: false,
         error: 'An account with this student email already exists.'
       });
+    }
+
+    let normalizedPhone = phone ? phone.trim() : undefined;
+    if (normalizedPhone) {
+      const existingPhone = await findUserByPhone(normalizedPhone);
+      if (existingPhone) {
+        return res.status(409).json({
+          success: false,
+          error: 'An account with this phone number already exists.'
+        });
+      }
+    }
+
+    // Ensure unique username
+    const baseUsername = normalizedEmail.split('@')[0].replace(/[^a-z0-9_]/g, '') || 'student';
+    let candidateUsername = baseUsername;
+    let counter = 1;
+    while (await findUserByUsername(candidateUsername)) {
+      candidateUsername = `${baseUsername}${counter++}`;
     }
 
     const formattedSkillsOffered = Array.isArray(skillsOffered)
@@ -61,8 +81,9 @@ router.post('/register', async (req, res) => {
       : [];
 
     const newUser = await createUser({
-      name,
-      email,
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: normalizedPhone,
       password,
       college: college || 'University Student',
       branch: branch || 'Computer Science & Engineering',
@@ -73,7 +94,7 @@ router.post('/register', async (req, res) => {
       bio: bio || '',
       languages: Array.isArray(languages) ? languages : (languages ? [languages] : []),
       interests: Array.isArray(interests) ? interests : (interests ? [interests] : []),
-      username: email.split('@')[0]
+      username: candidateUsername
     });
 
     const token = generateToken(newUser);
@@ -86,6 +107,13 @@ router.post('/register', async (req, res) => {
     });
   } catch (err) {
     console.error('Registration error:', err);
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern || {})[0] || 'identifier';
+      return res.status(409).json({
+        success: false,
+        error: `An account with this ${field} already exists.`
+      });
+    }
     res.status(500).json({ success: false, error: 'Internal server error during registration.' });
   }
 });
@@ -104,7 +132,8 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const user = await findUserByEmail(email);
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await findUserByEmail(normalizedEmail);
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -118,8 +147,6 @@ router.post('/login', async (req, res) => {
       passwordMatch = await user.comparePassword(password);
     } else if (user.passwordHash) {
       passwordMatch = await bcrypt.compare(password, user.passwordHash);
-    } else if (password === 'password123') {
-      passwordMatch = true;
     }
 
     if (!passwordMatch) {
@@ -212,7 +239,7 @@ router.get('/me', requireAuth, async (req, res) => {
   try {
     const user = await findUserById(req.user.id);
     if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found.' });
+      return res.status(401).json({ success: false, error: 'User session expired or account not found.' });
     }
 
     const safeUser = user.toSafeObject ? user.toSafeObject() : { ...user };

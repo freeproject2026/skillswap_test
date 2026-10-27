@@ -19,6 +19,18 @@ export const sessionService = {
     return res.session;
   },
 
+  acceptSession: async (sessionId) => {
+    const res = await apiClient.patch(`/sessions/${sessionId}/accept`, {});
+    if (!res?.session) throw new Error(res?.error || 'Failed to accept session');
+    return res.session;
+  },
+
+  rejectSession: async (sessionId, reason = '') => {
+    const res = await apiClient.patch(`/sessions/${sessionId}/reject`, { reason });
+    if (!res?.session) throw new Error(res?.error || 'Failed to reject session');
+    return res.session;
+  },
+
   updateSessionNotes: async (sessionId, { sessionNotes, sharedResources, nextSteps }) => {
     const res = await apiClient.patch(`/sessions/${sessionId}/notes`, {
       sessionNotes,

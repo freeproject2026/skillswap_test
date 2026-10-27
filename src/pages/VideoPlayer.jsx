@@ -35,6 +35,8 @@ export const VideoPlayer = () => {
   const [videoRating, setVideoRating] = useState(0);
   const [videoRatingCount, setVideoRatingCount] = useState(0);
   const [isRatingSubmitting, setIsRatingSubmitting] = useState(false);
+  const [playbackError, setPlaybackError] = useState(null);
+  const [buffering, setBuffering] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -227,14 +229,61 @@ export const VideoPlayer = () => {
           src={resolveMediaUrl(video.videoUrl)}
           poster={resolveMediaUrl(video.thumbnail || video.thumbnailUrl)}
           controls
-          crossOrigin="anonymous"
           playsInline
           className="w-full h-full object-contain"
           autoPlay={false}
+          onWaiting={() => setBuffering(true)}
+          onPlaying={() => { setBuffering(false); setPlaybackError(null); }}
+          onCanPlay={() => setBuffering(false)}
+          onError={(e) => {
+            console.error('Video error:', e);
+            setBuffering(false);
+            setPlaybackError('Unable to play video. The file could not be loaded or is in an unsupported format.');
+          }}
           onTimeUpdate={handleTimeUpdate}
           onPause={handlePlaybackSync}
           onEnded={handlePlaybackSync}
         />
+
+        {/* Buffering Indicator */}
+        {buffering && !playbackError && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none">
+            <div className="w-10 h-10 border-2 border-teal-200 border-t-teal-500 rounded-full animate-spin"></div>
+          </div>
+        )}
+
+        {/* Playback Error Overlay */}
+        {playbackError && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 bg-slate-900/95 text-center z-10 space-y-3">
+            <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+            <h3 className="text-sm font-bold text-white">Video Playback Notice</h3>
+            <p className="text-xs text-slate-300 max-w-sm leading-relaxed">{playbackError}</p>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => {
+                  setPlaybackError(null);
+                  if (videoRef.current) {
+                    videoRef.current.load();
+                    videoRef.current.play().catch(() => {});
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-white text-xs font-bold transition-all shadow-sm"
+              >
+                Retry Playback
+              </button>
+              <a
+                href={resolveMediaUrl(video.videoUrl)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-all"
+              >
+                Open Direct URL ↗
+              </a>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="px-3 sm:px-6 mt-4">

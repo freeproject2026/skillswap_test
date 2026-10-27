@@ -29,59 +29,83 @@ const getStatusBadge = (status) => {
 
 export const UpcomingSessionsCard = () => {
   const navigate = useNavigate();
-  const { currentUser, isGuest } = useApp();
+  const { currentUser, isGuest, showToast } = useApp();
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedSession, setSelectedSession] = useState(null);
 
-  useEffect(() => {
-    const fetchSessions = async () => {
-      if (isGuest || !currentUser) {
+  const fetchSessions = async () => {
+    if (isGuest || !currentUser) {
+      setSessions([]);
+      setLoading(false);
+      return;
+    }
+    try {
+      const data = await sessionService.getSessions();
+      if (data && data.length > 0) {
+        const currentUserId = currentUser.id || currentUser._id;
+        // Filter strictly for active/upcoming sessions
+        const upcomingStatuses = ['Upcoming', 'Awaiting Confirmation', 'Confirmed', 'Accepted', 'Pending'];
+        const upcomingOnly = data.filter(s => upcomingStatuses.includes(s.status));
+        const formatted = upcomingOnly.slice(0, 3).map(s => {
+          const isLearning = String(s.studentId) === String(currentUserId);
+          return {
+            id: s.id || s._id,
+            skill: s.skill,
+            title: s.learningObjective ? `${s.skill} · ${s.learningObjective}` : s.skill,
+            partnerName: isLearning ? s.tutorName : s.studentName,
+            partnerRole: isLearning ? 'Teacher' : 'Student',
+            partnerDetails: isLearning ? (s.tutorCollege || 'Campus Peer Tutor') : (s.studentCollege || 'Student Learner'),
+            partnerAvatar: (isLearning ? s.tutorAvatar : s.studentAvatar) || DEFAULT_AVATAR,
+            dateTime: `${s.scheduledDate}, ${s.scheduledTime}`,
+            format: s.format || 'Live Online Session',
+            type: isLearning ? 'Learning' : 'Teaching',
+            status: s.status || 'Upcoming',
+            durationMinutes: s.durationMinutes || 20,
+            creditCost: s.creditCost || 60,
+            meetingLink: s.meetingLink || '',
+            learningObjective: s.learningObjective || ''
+          };
+        });
+        setSessions(formatted);
+      } else {
         setSessions([]);
-        setLoading(false);
-        return;
       }
-      try {
-        const data = await sessionService.getSessions();
-        if (data && data.length > 0) {
-          const currentUserId = currentUser.id || currentUser._id;
-          // Filter strictly for active/upcoming sessions
-          const upcomingStatuses = ['Upcoming', 'Awaiting Confirmation', 'Confirmed', 'Accepted', 'Pending'];
-          const upcomingOnly = data.filter(s => upcomingStatuses.includes(s.status));
-          const formatted = upcomingOnly.slice(0, 3).map(s => {
-            const isLearning = String(s.studentId) === String(currentUserId);
-            return {
-              id: s.id || s._id,
-              skill: s.skill,
-              title: s.learningObjective ? `${s.skill} · ${s.learningObjective}` : s.skill,
-              partnerName: isLearning ? s.tutorName : s.studentName,
-              partnerRole: isLearning ? 'Teacher' : 'Student',
-              partnerDetails: isLearning ? (s.tutorCollege || 'Campus Peer Tutor') : (s.studentCollege || 'Student Learner'),
-              partnerAvatar: (isLearning ? s.tutorAvatar : s.studentAvatar) || DEFAULT_AVATAR,
-              dateTime: `${s.scheduledDate}, ${s.scheduledTime}`,
-              format: s.format || 'Live Online Session',
-              type: isLearning ? 'Learning' : 'Teaching',
-              status: s.status || 'Upcoming',
-              durationMinutes: s.durationMinutes || 20,
-              creditCost: s.creditCost || 60,
-              meetingLink: s.meetingLink || '',
-              learningObjective: s.learningObjective || ''
-            };
-          });
-          setSessions(formatted);
-        } else {
-          setSessions([]);
-        }
-      } catch (err) {
-        console.error('Error fetching upcoming sessions:', err);
-        setSessions([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    } catch (err) {
+      console.error('Error fetching upcoming sessions:', err);
+      setSessions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchSessions();
   }, [currentUser, isGuest]);
+
+  const handleAccept = async (e, sessionId) => {
+    e.stopPropagation();
+    try {
+      await sessionService.acceptSession(sessionId);
+      showToast('Session booking accepted!', 'success');
+      fetchSessions();
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Failed to accept session', 'error');
+    }
+  };
+
+  const handleReject = async (e, sessionId) => {
+    e.stopPropagation();
+    try {
+      await sessionService.rejectSession(sessionId);
+      showToast('Session booking declined.', 'info');
+      fetchSessions();
+    } catch (err) {
+      console.error(err);
+      showToast(err.message || 'Failed to reject session', 'error');
+    }
+  };
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm flex flex-col justify-between min-h-[340px]">
@@ -181,18 +205,37 @@ export const UpcomingSessionsCard = () => {
                   </div>
 
                   <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => setSelectedSession(sess)}
-                      className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-950/40 text-slate-700 dark:text-slate-200 hover:text-teal-600 dark:hover:text-teal-400 text-xs font-bold transition-all shadow-2xs border border-slate-200/80 dark:border-slate-600"
-                    >
-                      View Details
-                    </button>
-                    <button
-                      onClick={() => navigate(`/room/${sess.id}`)}
-                      className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-2xs"
-                    >
-                      Join Room
-                    </button>
+                    {sess.status === 'Pending' && sess.type === 'Teaching' ? (
+                      <>
+                        <button
+                          onClick={(e) => handleAccept(e, sess.id)}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-xs"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={(e) => handleReject(e, sess.id)}
+                          className="px-2 py-1 rounded-lg border border-rose-300 dark:border-rose-700 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-bold transition-all"
+                        >
+                          Decline
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => setSelectedSession(sess)}
+                          className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-700 hover:bg-teal-50 dark:hover:bg-teal-950/40 text-slate-700 dark:text-slate-200 hover:text-teal-600 dark:hover:text-teal-400 text-xs font-bold transition-all shadow-2xs border border-slate-200/80 dark:border-slate-600"
+                        >
+                          View Details
+                        </button>
+                        <button
+                          onClick={() => navigate(`/room/${sess.id}`)}
+                          className="px-2.5 py-1 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-2xs"
+                        >
+                          Join Room
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

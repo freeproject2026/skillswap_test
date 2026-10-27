@@ -8,6 +8,7 @@ const NotificationSchema = new mongoose.Schema({
       'connection_request',
       'new_follower',
       'session_accepted',
+      'session_rejected',
       'skill_swap_request',
       'session_completed',
       'token_credit',
@@ -31,6 +32,7 @@ const NotificationSchema = new mongoose.Schema({
 NotificationSchema.methods.toSafeObject = function() {
   const obj = this.toObject ? this.toObject() : { ...this };
   obj.id = obj._id ? obj._id.toString() : obj.id;
+  obj.data = obj.metadata || {};
   delete obj.__v;
   return obj;
 };

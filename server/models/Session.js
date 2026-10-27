@@ -9,11 +9,13 @@ const SessionSchema = new mongoose.Schema({
   studentName: { type: String, required: true },
   studentAvatar: { type: String, default: '' },
   skill: { type: String, required: true },
+  sessionType: { type: String, default: 'Peer Tutoring' },
   status: {
     type: String,
-    enum: ['Upcoming', 'Awaiting Confirmation', 'Confirmed', 'Accepted', 'Pending', 'Completed', 'Disputed', 'Cancelled'],
-    default: 'Upcoming'
+    enum: ['Pending', 'Accepted', 'Rejected', 'Upcoming', 'Awaiting Confirmation', 'Confirmed', 'Completed', 'Disputed', 'Cancelled'],
+    default: 'Pending'
   },
+  rejectReason: { type: String, default: '' },
   scheduledDate: { type: String, default: 'This Weekend' },
   scheduledTime: { type: String, default: '6:00 PM' },
   durationMinutes: { type: Number, default: 20 },

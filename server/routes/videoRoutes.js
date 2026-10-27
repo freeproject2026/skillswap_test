@@ -1,15 +1,101 @@
 // Video CRUD routes for SkillSwap
 import express from 'express';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { optionalAuth, requireAuth } from '../middleware/auth.js';
 import { listVideos, findVideoById, createVideo, updateVideo, deleteVideo } from '../data/store.js';
 import { Video } from '../models/Video.js';
 import { User } from '../models/User.js';
 
 const router = express.Router();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
+
+const ensureInitialVideos = async () => {
+  try {
+    const count = await Video.countDocuments();
+    if (count > 0) return;
+
+    const f1 = 'vid_1792995096041.mp4';
+    const f2 = 'vid_1792995506518.mp4';
+
+    const seeded = [];
+    if (fs.existsSync(path.join(UPLOADS_DIR, f1))) {
+      seeded.push({
+        title: 'Full-Stack Web Development & Real-Time State',
+        description: 'Deep dive into real-time state management, WebSockets, MongoDB schemas, and clean full-stack architectural patterns.',
+        category: 'Programming',
+        duration: '18:45',
+        durationSeconds: 1125,
+        videoUrl: `/uploads/${f1}`,
+        thumbnailUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1000&q=80',
+        fileName: f1,
+        fileSize: 17629816,
+        mimeType: 'video/mp4',
+        skillsTaught: ['React', 'Node.js', 'WebSockets', 'MongoDB'],
+        level: 'Intermediate',
+        language: 'English',
+        visibility: 'public',
+        status: 'published',
+        views: 1240,
+        likes: 85,
+        isFeatured: true,
+        creator: {
+          id: 'usr_elena',
+          name: 'Elena Rostova',
+          username: 'elenacodes',
+          avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80',
+          college: 'Stanford University',
+          branch: 'Computer Science'
+        }
+      });
+    }
+
+    if (fs.existsSync(path.join(UPLOADS_DIR, f2))) {
+      seeded.push({
+        title: 'Mastering Modern System Design & Architecture',
+        description: 'Learn how to build resilient systems, optimize database indexes, handle concurrent traffic, and implement clean distributed caching.',
+        category: 'Programming',
+        duration: '24:10',
+        durationSeconds: 1450,
+        videoUrl: `/uploads/${f2}`,
+        thumbnailUrl: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=1000&q=80',
+        fileName: f2,
+        fileSize: 16893127,
+        mimeType: 'video/mp4',
+        skillsTaught: ['System Design', 'Backend Architecture', 'Scalability', 'Databases'],
+        level: 'Advanced',
+        language: 'English',
+        visibility: 'public',
+        status: 'published',
+        views: 3120,
+        likes: 198,
+        isFeatured: false,
+        creator: {
+          id: 'usr_marcus',
+          name: 'Marcus Chen',
+          username: 'marcus_design',
+          avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
+          college: 'UC Berkeley',
+          branch: 'Software Engineering'
+        }
+      });
+    }
+
+    if (seeded.length > 0) {
+      await Video.insertMany(seeded);
+      console.log(`✅ Seeded ${seeded.length} verified videos into MongoDB.`);
+    }
+  } catch (err) {
+    console.warn('Initial videos seeding skipped:', err.message);
+  }
+};
 
 // GET /api/videos?category=...&search=...&topic=...&hashtag=...
 router.get('/', optionalAuth, async (req, res) => {
   try {
+    await ensureInitialVideos();
     const { category, search, topic, hashtag } = req.query;
     const videos = await listVideos({ category, search, topic: topic || hashtag });
     const userId = req.user?.id;

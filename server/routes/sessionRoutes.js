@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { Session } from '../models/Session.js';
 import { User } from '../models/User.js';
 import { WalletTransaction } from '../models/WalletTransaction.js';
+import { Notification } from '../models/Notification.js';
 
 const router = express.Router();
 
@@ -61,6 +62,7 @@ router.post('/', requireAuth, async (req, res) => {
       tutorAvatar,
       tutorCollege,
       skill,
+      sessionType,
       scheduledDate,
       scheduledTime,
       durationMinutes,
@@ -71,6 +73,36 @@ router.post('/', requireAuth, async (req, res) => {
 
     if (!tutorId || !skill) {
       return res.status(400).json({ success: false, error: 'Tutor and skill are required.' });
+    }
+
+    if (String(tutorId) === String(student.id)) {
+      return res.status(400).json({ success: false, error: 'You cannot book a session with yourself.' });
+    }
+
+    // Verify recipient/tutor exists
+    const tutorDoc = await User.findById(tutorId);
+    if (!tutorDoc) {
+      return res.status(404).json({ success: false, error: 'Recipient tutor profile not found.' });
+    }
+
+    const sDate = scheduledDate || 'This Weekend';
+    const sTime = scheduledTime || '6:00 PM';
+
+    // Check for duplicate pending/accepted booking or time conflict between student and tutor
+    const existingConflict = await Session.findOne({
+      tutorId,
+      studentId: student.id,
+      skill,
+      scheduledDate: sDate,
+      scheduledTime: sTime,
+      status: { $in: ['Pending', 'Accepted', 'Upcoming'] }
+    });
+
+    if (existingConflict) {
+      return res.status(400).json({
+        success: false,
+        error: 'A session booking with this tutor for the same skill and time already exists.'
+      });
     }
 
     const cost = Number(creditCost) || 0;
@@ -96,25 +128,26 @@ router.post('/', requireAuth, async (req, res) => {
         amount: cost,
         currency: 'credits',
         title: `Reserved for ${skill} Session`,
-        description: `Credits held in escrow for session with ${tutorName || 'Tutor'}`,
+        description: `Credits held in escrow for session with ${tutorName || tutorDoc.name || 'Tutor'}`,
         counterpartyId: tutorId,
-        counterpartyName: tutorName || 'Tutor'
+        counterpartyName: tutorName || tutorDoc.name || 'Tutor'
       });
     }
 
     const meetingId = `room-${Date.now().toString().slice(-6)}`;
     const session = new Session({
       tutorId,
-      tutorName: tutorName || 'Tutor',
-      tutorAvatar: tutorAvatar || '',
-      tutorCollege: tutorCollege || 'Campus Tutor',
+      tutorName: tutorName || tutorDoc.name || 'Tutor',
+      tutorAvatar: tutorAvatar || tutorDoc.avatar || '',
+      tutorCollege: tutorCollege || tutorDoc.college || 'Campus Tutor',
       studentId: student.id,
       studentName: student.name || 'Student',
-      studentAvatar: student.avatar || '',
+      studentAvatar: studentDoc?.avatar || student.avatar || '',
       skill,
-      status: 'Upcoming',
-      scheduledDate: scheduledDate || 'This Weekend',
-      scheduledTime: scheduledTime || '6:00 PM',
+      sessionType: sessionType || 'Peer Tutoring',
+      status: 'Pending',
+      scheduledDate: sDate,
+      scheduledTime: sTime,
       durationMinutes: durationMinutes || 20,
       creditCost: cost,
       escrowStatus: cost > 0 ? 'Reserved' : 'Settled',
@@ -131,14 +164,204 @@ router.post('/', requireAuth, async (req, res) => {
 
     await session.save();
 
+    // Create in-app notification for recipient/teacher
+    try {
+      await Notification.create({
+        userId: tutorId,
+        type: 'skill_swap_request',
+        title: 'New Session Request',
+        message: `${student.name || 'A student'} requested a session for ${skill} on ${sDate} at ${sTime}.`,
+        read: false,
+        actionUrl: '/sessions',
+        sender: {
+          id: student.id,
+          name: student.name || 'Student',
+          avatar: studentDoc?.avatar || ''
+        },
+        metadata: {
+          sessionId: session._id ? session._id.toString() : session.id,
+          skill,
+          scheduledDate: sDate,
+          scheduledTime: sTime
+        }
+      });
+    } catch (notifErr) {
+      console.warn('Failed to dispatch notification:', notifErr.message);
+    }
+
     res.status(201).json({
       success: true,
-      message: 'Session booked successfully.',
+      message: 'Session booking request submitted.',
       session: session.toSafeObject()
     });
   } catch (err) {
     console.error('Book session error:', err);
     res.status(500).json({ success: false, error: 'Failed to book session.' });
+  }
+});
+
+// PATCH /api/sessions/:id/accept – Accept booking request (recipient teacher only)
+router.patch('/:id/accept', requireAuth, async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) {
+      return res.status(404).json({ success: false, error: 'Session request not found.' });
+    }
+
+    const currentUserId = String(req.user.id);
+
+    // Prevent users from accepting their own requests
+    if (String(session.studentId) === currentUserId) {
+      return res.status(403).json({
+        success: false,
+        error: 'You cannot accept your own booking request.'
+      });
+    }
+
+    // Allow only the intended recipient (tutor)
+    if (String(session.tutorId) !== currentUserId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized. Only the requested teacher can accept this session request.'
+      });
+    }
+
+    // Prevent accepting already processed requests
+    if (session.status !== 'Pending') {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot accept request. This session has already been ${session.status.toLowerCase()}.`
+      });
+    }
+
+    session.status = 'Accepted';
+    await session.save();
+
+    // Create notification for requester (student)
+    try {
+      await Notification.create({
+        userId: session.studentId,
+        type: 'session_accepted',
+        title: 'Session Request Accepted!',
+        message: `${session.tutorName} accepted your session booking for ${session.skill}.`,
+        read: false,
+        actionUrl: '/sessions',
+        sender: {
+          id: req.user.id,
+          name: req.user.name,
+          avatar: session.tutorAvatar || ''
+        },
+        metadata: {
+          sessionId: session._id ? session._id.toString() : session.id,
+          skill: session.skill
+        }
+      });
+    } catch (notifErr) {
+      console.warn('Failed to dispatch accepted notification:', notifErr.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Session booking accepted successfully!',
+      session: session.toSafeObject()
+    });
+  } catch (err) {
+    console.error('Accept session error:', err);
+    res.status(500).json({ success: false, error: 'Failed to accept session booking.' });
+  }
+});
+
+// PATCH /api/sessions/:id/reject – Reject booking request (recipient teacher only)
+router.patch('/:id/reject', requireAuth, async (req, res) => {
+  try {
+    const { reason } = req.body;
+    const session = await Session.findById(req.params.id);
+    if (!session) {
+      return res.status(404).json({ success: false, error: 'Session request not found.' });
+    }
+
+    const currentUserId = String(req.user.id);
+
+    // Prevent users from rejecting requests belonging to others or their own
+    if (String(session.studentId) === currentUserId) {
+      return res.status(403).json({
+        success: false,
+        error: 'You cannot reject your own booking request. Please cancel it instead.'
+      });
+    }
+
+    // Allow only the intended recipient (tutor)
+    if (String(session.tutorId) !== currentUserId) {
+      return res.status(403).json({
+        success: false,
+        error: 'Unauthorized. Only the requested teacher can reject this session request.'
+      });
+    }
+
+    // Prevent rejecting already processed requests
+    if (session.status !== 'Pending') {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot reject request. This session has already been ${session.status.toLowerCase()}.`
+      });
+    }
+
+    // Refund escrow if reserved
+    if (session.escrowStatus === 'Reserved' && session.creditCost > 0) {
+      const studentDoc = await User.findById(session.studentId);
+      if (studentDoc && (studentDoc.creditsEscrow || 0) >= session.creditCost) {
+        studentDoc.creditsEscrow -= session.creditCost;
+        studentDoc.creditsBalance += session.creditCost;
+        await studentDoc.save();
+
+        await WalletTransaction.create({
+          userId: session.studentId,
+          type: 'escrow_refunded',
+          amount: session.creditCost,
+          currency: 'credits',
+          title: `Refund: ${session.skill} Booking Declined`,
+          description: `Escrow refunded because booking request was declined by ${session.tutorName}`,
+          sessionId: session.id
+        });
+      }
+      session.escrowStatus = 'Refunded';
+    }
+
+    session.status = 'Rejected';
+    session.rejectReason = reason || 'Declined by teacher';
+    await session.save();
+
+    // Create notification for requester (student)
+    try {
+      await Notification.create({
+        userId: session.studentId,
+        type: 'session_rejected',
+        title: 'Session Request Declined',
+        message: `${session.tutorName} was unable to accept your session request for ${session.skill}.${reason ? ` Reason: ${reason}` : ''}`,
+        read: false,
+        actionUrl: '/sessions',
+        sender: {
+          id: req.user.id,
+          name: req.user.name,
+          avatar: session.tutorAvatar || ''
+        },
+        metadata: {
+          sessionId: session._id ? session._id.toString() : session.id,
+          skill: session.skill
+        }
+      });
+    } catch (notifErr) {
+      console.warn('Failed to dispatch rejected notification:', notifErr.message);
+    }
+
+    res.json({
+      success: true,
+      message: 'Session booking request declined.',
+      session: session.toSafeObject()
+    });
+  } catch (err) {
+    console.error('Reject session error:', err);
+    res.status(500).json({ success: false, error: 'Failed to reject session booking.' });
   }
 });
 

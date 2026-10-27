@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Send, Calendar, Clock, Coins, Sparkles, Check, X, Video, MoreVertical } from 'lucide-react';
 import { chatService } from '../services/chatService';
 import { userService } from '../services/userService';
+import { sessionService } from '../services/sessionService';
 import { useApp } from '../context/AppContext';
 import { AuthGate } from '../components/auth/AuthGate';
 import { AuthModal } from '../components/auth/AuthModal';
@@ -60,18 +61,31 @@ export const ChatPage = () => {
 
   const handlePropose = async () => {
     if (!proposeSkill.trim() || !conversation) return;
-    const sessionData = {
-      id: `sess_${Date.now()}`,
-      skill: proposeSkill,
-      status: 'Pending',
-      type: 'TUTORING',
-      scheduledFor: 'To be confirmed',
-      durationMinutes: proposeDuration,
-      tokenCost: proposeTokens,
-      tutorPayout: Math.round(proposeTokens * 0.83),
-      platformFee: proposeTokens - Math.round(proposeTokens * 0.83)
-    };
     try {
+      const booked = await sessionService.bookSession({
+        tutorId: userId,
+        tutorName: user.name,
+        tutorAvatar: user.avatar || '',
+        tutorCollege: user.college || '',
+        skill: proposeSkill.trim(),
+        scheduledDate: 'Upcoming Weekend',
+        scheduledTime: '6:00 PM',
+        durationMinutes: proposeDuration,
+        creditCost: proposeTokens,
+        format: 'Live Online Session',
+        learningObjective: `Peer learning and practice for ${proposeSkill.trim()}`
+      });
+
+      const sessionData = {
+        id: booked.id || booked._id,
+        skill: proposeSkill,
+        status: 'Pending',
+        type: 'TUTORING',
+        scheduledFor: 'Upcoming Weekend, 6:00 PM',
+        durationMinutes: proposeDuration,
+        tokenCost: proposeTokens
+      };
+
       const msg = await chatService.sendMessage(conversation.id, {
         senderId: myId,
         text: `Proposed a ${proposeDuration}-minute session on ${proposeSkill}.`,
@@ -81,8 +95,11 @@ export const ChatPage = () => {
       setMessages(prev => [...prev, msg]);
       setShowPropose(false);
       setProposeSkill('');
-      showToast('Session proposal sent!');
-    } catch (err) { console.error(err); }
+      showToast('Session booking request sent!');
+    } catch (err) {
+      console.error('Propose session error:', err);
+      showToast(err.message || 'Failed to send session proposal', 'error');
+    }
   };
 
   if (isGuest || !currentUser) {
@@ -185,6 +202,41 @@ export const ChatPage = () => {
                     <span className="flex items-center gap-1"><Coins className="w-3 h-3" />{msg.sessionData.tokenCost === 0 ? 'Free Swap' : `${msg.sessionData.tokenCost} tokens`}</span>
                   </div>
                   <p className="text-[10px] text-slate-400 mt-1.5">{msg.timestamp}</p>
+
+                  {!isMe && msg.sessionData.status === 'Pending' && (
+                    <div className="flex items-center gap-2 mt-2 pt-2 border-t border-purple-200/60 dark:border-purple-800/60">
+                      <button
+                        onClick={async () => {
+                          try {
+                            await sessionService.acceptSession(msg.sessionData.id);
+                            msg.sessionData.status = 'Accepted';
+                            showToast('Session request accepted!');
+                            setMessages([...messages]);
+                          } catch (err) {
+                            showToast(err.message || 'Failed to accept session', 'error');
+                          }
+                        }}
+                        className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={async () => {
+                          try {
+                            await sessionService.rejectSession(msg.sessionData.id);
+                            msg.sessionData.status = 'Declined';
+                            showToast('Session request declined.');
+                            setMessages([...messages]);
+                          } catch (err) {
+                            showToast(err.message || 'Failed to decline session', 'error');
+                          }
+                        }}
+                        className="px-3 py-1 rounded-lg border border-rose-300 dark:border-rose-700 text-rose-600 dark:text-rose-400 text-[11px] font-bold hover:bg-rose-50"
+                      >
+                        Decline
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             );

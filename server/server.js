@@ -3,6 +3,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { startLocalMongo } from './localMongo.js';
 
@@ -180,9 +181,94 @@ app.get('/db', async (req, res) => {
   }
 });
 
-// Serve uploaded video files as static assets
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+// Video Streaming and Static Serving with HTTP Byte-Range support & CORS
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const videoExtensions = new Set(['.mp4', '.webm', '.ogg', '.mov', '.m4v', '.mkv']);
+
+const streamVideoFile = (filePath, req, res) => {
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ success: false, error: 'Video file not found on server.' });
+  }
+
+  const stat = fs.statSync(filePath);
+  const fileSize = stat.size;
+  const range = req.headers.range;
+
+  const ext = path.extname(filePath).toLowerCase();
+  const mimeTypes = {
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm',
+    '.ogg': 'video/ogg',
+    '.mov': 'video/quicktime',
+    '.m4v': 'video/mp4',
+    '.mkv': 'video/x-matroska'
+  };
+  const contentType = mimeTypes[ext] || 'video/mp4';
+
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Range');
+  res.header('Access-Control-Expose-Headers', 'Content-Range, Accept-Ranges, Content-Length, Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+
+  if (range) {
+    const parts = range.replace(/bytes=/, '').split('-');
+    const start = parseInt(parts[0], 10);
+    const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+    if (start >= fileSize || end >= fileSize) {
+      res.status(416).header('Content-Range', `bytes */${fileSize}`).end();
+      return;
+    }
+
+    const chunksize = (end - start) + 1;
+    const file = fs.createReadStream(filePath, { start, end });
+    const head = {
+      'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+      'Accept-Ranges': 'bytes',
+      'Content-Length': chunksize,
+      'Content-Type': contentType,
+    };
+
+    res.writeHead(206, head);
+    file.pipe(res);
+  } else {
+    const head = {
+      'Content-Length': fileSize,
+      'Content-Type': contentType,
+      'Accept-Ranges': 'bytes',
+    };
+    res.writeHead(200, head);
+    fs.createReadStream(filePath).pipe(res);
+  }
+};
+
+const videoStreamMiddleware = (req, res, next) => {
+  const filename = path.basename(req.path);
+  const ext = path.extname(filename).toLowerCase();
+  if (videoExtensions.has(ext)) {
+    const filePath = path.join(uploadsDir, filename);
+    return streamVideoFile(filePath, req, res);
+  }
+  next();
+};
+
+// Serve uploaded video files with byte-range streaming, fallback to static for images/avatars
+app.use('/uploads', videoStreamMiddleware, express.static(uploadsDir, {
+  setHeaders: (res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
+app.use('/api/uploads', videoStreamMiddleware, express.static(uploadsDir, {
+  setHeaders: (res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+  }
+}));
 
 // Mount Core Application Routes
 app.use('/api/auth', authRoutes);
