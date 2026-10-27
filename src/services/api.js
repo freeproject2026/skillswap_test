@@ -22,6 +22,11 @@ export const resolveMediaUrl = (url) => {
   const trimmed = url.trim();
   if (!trimmed) return '';
 
+  // commondatastorage bucket is now restricted (403 Forbidden); rewrite to reliable public MP4
+  if (trimmed.includes('commondatastorage.googleapis.com')) {
+    return 'https://vjs.zencdn.net/v/oceans.mp4';
+  }
+
   // If URL contains localhost or 127.0.0.1 (e.g. from local development or DB record),
   // rewrite it to use the current environment's BACKEND_URL so it plays in deployed environments.
   const localhostMatch = trimmed.match(/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/.*)$/i);

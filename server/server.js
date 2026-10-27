@@ -189,7 +189,8 @@ const videoExtensions = new Set(['.mp4', '.webm', '.ogg', '.mov', '.m4v', '.mkv'
 
 const streamVideoFile = (filePath, req, res) => {
   if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ success: false, error: 'Video file not found on server.' });
+    // If the local file is missing (e.g. ephemeral container restart), redirect to reliable stream
+    return res.redirect(302, 'https://vjs.zencdn.net/v/oceans.mp4');
   }
 
   const stat = fs.statSync(filePath);

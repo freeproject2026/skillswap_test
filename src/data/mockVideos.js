@@ -25,7 +25,7 @@ export const MOCK_VIDEOS = [
     isSaved: false,
     createdAt: '2 days ago',
     thumbnail: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1000&q=80',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
     isFeatured: true,
     skillsTaught: ['Three.js', 'WebGL', 'JavaScript', '3D Graphics'],
     creator: {
@@ -70,7 +70,7 @@ export const MOCK_VIDEOS = [
     isSaved: true,
     createdAt: '4 days ago',
     thumbnail: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?auto=format&fit=crop&w=1000&q=80',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
     isFeatured: false,
     skillsTaught: ['Figma', 'Design Systems', 'Tailwind CSS', 'UI/UX'],
     creator: {
@@ -107,7 +107,7 @@ export const MOCK_VIDEOS = [
     isSaved: false,
     createdAt: '1 week ago',
     thumbnail: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?auto=format&fit=crop&w=1000&q=80',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
     isFeatured: false,
     skillsTaught: ['Python', 'Machine Learning', 'Vector Databases', 'RAG'],
     creator: {
@@ -135,7 +135,7 @@ export const MOCK_VIDEOS = [
     isSaved: true,
     createdAt: '5 days ago',
     thumbnail: 'https://images.unsplash.com/photo-1543783207-ec64e4d95325?auto=format&fit=crop&w=1000&q=80',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
     isFeatured: false,
     skillsTaught: ['Spanish', 'Pronunciation', 'Language Learning', 'Culture'],
     creator: {
@@ -163,7 +163,7 @@ export const MOCK_VIDEOS = [
     isSaved: false,
     createdAt: '3 days ago',
     thumbnail: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=1000&q=80',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+    videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
     isFeatured: false,
     skillsTaught: ['Public Speaking', 'Executive Presence', 'Storytelling', 'Leadership'],
     creator: {
@@ -191,7 +191,7 @@ export const MOCK_VIDEOS = [
     isSaved: false,
     createdAt: '6 days ago',
     thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1000&q=80',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
+    videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
     isFeatured: false,
     skillsTaught: ['Ableton Live', 'Sound Design', 'Audio Production', 'Synthesizers'],
     creator: {
@@ -219,7 +219,7 @@ export const MOCK_VIDEOS = [
     isSaved: false,
     createdAt: '1 day ago',
     thumbnail: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1000&q=80',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
     isFeatured: false,
     skillsTaught: ['React 19', 'JavaScript', 'Frontend Architecture', 'State Management'],
     creator: {
@@ -247,7 +247,7 @@ export const MOCK_VIDEOS = [
     isSaved: true,
     createdAt: '3 days ago',
     thumbnail: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1000&q=80',
-    videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+    videoUrl: 'https://vjs.zencdn.net/v/oceans.mp4',
     isFeatured: false,
     skillsTaught: ['Product Strategy', 'SaaS Growth', 'Marketing', 'Monetization'],
     creator: {

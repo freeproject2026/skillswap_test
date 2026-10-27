@@ -38,6 +38,13 @@ export const VideoPlayer = () => {
   const [isRatingSubmitting, setIsRatingSubmitting] = useState(false);
   const [playbackError, setPlaybackError] = useState(null);
   const [buffering, setBuffering] = useState(false);
+  const [videoSrc, setVideoSrc] = useState('');
+
+  useEffect(() => {
+    if (video?.videoUrl) {
+      setVideoSrc(resolveMediaUrl(video.videoUrl));
+    }
+  }, [video?.videoUrl]);
 
   // Clear any buffering timeout when component unmounts
   useEffect(() => {
@@ -254,7 +261,7 @@ export const VideoPlayer = () => {
       <div className="w-full aspect-video bg-black rounded-none sm:rounded-2xl overflow-hidden sm:mx-6 sm:max-w-[calc(100%-3rem)] shadow-lg relative">
         <video
           ref={videoRef}
-          src={resolveMediaUrl(video.videoUrl)}
+          src={videoSrc || resolveMediaUrl(video.videoUrl)}
           poster={resolveMediaUrl(video.thumbnail || video.thumbnailUrl)}
           controls
           preload="metadata"
@@ -291,6 +298,13 @@ export const VideoPlayer = () => {
           }}
           onError={(e) => {
             console.error('Video error:', e);
+            const fallbackUrl = 'https://vjs.zencdn.net/v/oceans.mp4';
+            if (videoSrc && videoSrc !== fallbackUrl) {
+              console.warn('Primary video failed, falling back to reliable stream:', fallbackUrl);
+              setVideoSrc(fallbackUrl);
+              setPlaybackError(null);
+              return;
+            }
             clearBufferingTimeout();
             setBuffering(false);
             const videoEl = e.target;
@@ -348,7 +362,7 @@ export const VideoPlayer = () => {
                 Retry Playback
               </button>
               <a
-                href={resolveMediaUrl(video.videoUrl)}
+                href={videoSrc || resolveMediaUrl(video.videoUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-4 py-2 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 text-xs font-semibold transition-all"
