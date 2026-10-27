@@ -1,6 +1,7 @@
 import express from 'express';
 import { requireAuth } from '../middleware/auth.js';
 import { Conversation } from '../models/Conversation.js';
+import { findUserById } from '../data/store.js';
 
 const router = express.Router();
 
@@ -52,6 +53,48 @@ router.get('/conversations/:participantId', requireAuth, async (req, res) => {
   }
 });
 
+/**
+ * GET /api/chat/conversations/:id/messages
+ * Poll for messages. Supports ?since=<ISO timestamp> to return only new messages.
+ * Used by the frontend for real-time polling fallback.
+ */
+router.get('/conversations/:id/messages', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const conv = await Conversation.findById(req.params.id);
+    if (!conv) {
+      return res.status(404).json({ success: false, error: 'Conversation not found.' });
+    }
+    if (!conv.participants.includes(userId)) {
+      return res.status(403).json({ success: false, error: 'Unauthorized to read this conversation.' });
+    }
+
+    const safe = conv.toSafeObject(userId);
+    let messages = safe.messages || [];
+
+    // If ?since= is provided, only return messages newer than that timestamp
+    const since = req.query.since;
+    if (since) {
+      const sinceTime = new Date(since).getTime();
+      if (!isNaN(sinceTime)) {
+        messages = messages.filter(m => {
+          const t = m.timestamp ? new Date(m.timestamp).getTime() : 0;
+          return t > sinceTime;
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      messages,
+      lastMessageAt: conv.lastMessageAt
+    });
+  } catch (err) {
+    console.error('Poll messages error:', err);
+    res.status(500).json({ success: false, error: 'Failed to poll messages.' });
+  }
+});
+
 // POST /api/chat/conversations/:id/messages – Send a message
 router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
   try {
@@ -71,9 +114,24 @@ router.post('/conversations/:id/messages', requireAuth, async (req, res) => {
       return res.status(403).json({ success: false, error: 'Unauthorized to post to this conversation.' });
     }
 
+    // Fetch sender info to embed name & avatar in the message record
+    let senderName = req.user.name || '';
+    let senderAvatar = req.user.avatar || '';
+    try {
+      const senderUser = await findUserById(userId);
+      if (senderUser) {
+        senderName = senderUser.name || senderName;
+        senderAvatar = senderUser.avatar || senderAvatar;
+      }
+    } catch (_e) {
+      // Non-fatal – message still sends even if user lookup fails
+    }
+
     const newMsg = {
-      id: `msg_${Date.now()}`,
+      id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
       senderId: userId,
+      senderName,
+      senderAvatar,
       text: text || '',
       type: type || 'text',
       sessionData: sessionData || null,

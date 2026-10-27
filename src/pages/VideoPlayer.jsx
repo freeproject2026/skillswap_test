@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Heart, Bookmark, Share2, Play, MessageCircle, ChevronDown, ChevronUp,
-  Send, Eye, Clock, ArrowLeft, UserPlus, Check, Star, Lock
+  Send, Eye, Clock, ArrowLeft, UserPlus, Check, Star, Lock, AlertTriangle
 } from 'lucide-react';
 import VideoCard from '../components/VideoCard';
 import { videoService } from '../services/videoService';
@@ -29,6 +29,7 @@ export const VideoPlayer = () => {
   const videoRef = useRef(null);
   const lastReportedTimeRef = useRef(0);
   const lastReportedAtRef = useRef(0);
+  const bufferingTimeoutRef = useRef(null);
   const [watchProgress, setWatchProgress] = useState(0);
   const [eligibleToRate, setEligibleToRate] = useState(false);
   const [userRating, setUserRating] = useState(null);
@@ -37,6 +38,29 @@ export const VideoPlayer = () => {
   const [isRatingSubmitting, setIsRatingSubmitting] = useState(false);
   const [playbackError, setPlaybackError] = useState(null);
   const [buffering, setBuffering] = useState(false);
+
+  // Clear any buffering timeout when component unmounts
+  useEffect(() => {
+    return () => {
+      if (bufferingTimeoutRef.current) clearTimeout(bufferingTimeoutRef.current);
+    };
+  }, []);
+
+  const startBufferingTimeout = () => {
+    if (bufferingTimeoutRef.current) clearTimeout(bufferingTimeoutRef.current);
+    // If still buffering after 15 seconds, show error instead of spinning forever
+    bufferingTimeoutRef.current = setTimeout(() => {
+      setBuffering(false);
+      setPlaybackError('Video is taking too long to load. Check your connection or try again.');
+    }, 15000);
+  };
+
+  const clearBufferingTimeout = () => {
+    if (bufferingTimeoutRef.current) {
+      clearTimeout(bufferingTimeoutRef.current);
+      bufferingTimeoutRef.current = null;
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -232,13 +256,44 @@ export const VideoPlayer = () => {
           playsInline
           className="w-full h-full object-contain"
           autoPlay={false}
-          onWaiting={() => setBuffering(true)}
-          onPlaying={() => { setBuffering(false); setPlaybackError(null); }}
-          onCanPlay={() => setBuffering(false)}
+          onLoadStart={() => {
+            setPlaybackError(null);
+            setBuffering(true);
+            startBufferingTimeout();
+          }}
+          onLoadedData={() => {
+            clearBufferingTimeout();
+            setBuffering(false);
+          }}
+          onCanPlay={() => {
+            clearBufferingTimeout();
+            setBuffering(false);
+          }}
+          onWaiting={() => {
+            setBuffering(true);
+            startBufferingTimeout();
+          }}
+          onPlaying={() => {
+            clearBufferingTimeout();
+            setBuffering(false);
+            setPlaybackError(null);
+          }}
           onError={(e) => {
             console.error('Video error:', e);
+            clearBufferingTimeout();
             setBuffering(false);
-            setPlaybackError('Unable to play video. The file could not be loaded or is in an unsupported format.');
+            const videoEl = e.target;
+            let errMsg = 'Unable to play video. The file could not be loaded or is in an unsupported format.';
+            if (videoEl?.error) {
+              switch (videoEl.error.code) {
+                case 1: errMsg = 'Video loading was aborted.'; break;
+                case 2: errMsg = 'A network error occurred while loading the video. Check your connection.'; break;
+                case 3: errMsg = 'Video could not be decoded. The file may be corrupted or use an unsupported codec.'; break;
+                case 4: errMsg = 'This video format is not supported by your browser. Try a different browser.'; break;
+                default: break;
+              }
+            }
+            setPlaybackError(errMsg);
           }}
           onTimeUpdate={handleTimeUpdate}
           onPause={handlePlaybackSync}

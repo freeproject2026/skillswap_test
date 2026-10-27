@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Upload, Image, X, Check, AlertTriangle, Film } from 'lucide-react';
+import { Upload, Image, X, Check, AlertTriangle, Film, AlertCircle } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { videoService } from '../services/videoService';
 import { API_BASE_URL } from '../services/api';
@@ -25,6 +25,7 @@ export const VideoUpload = () => {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [done, setDone] = useState(false);
+  const [uploadError, setUploadError] = useState(null);
 
   if (isGuest || !currentUser) {
     return (
@@ -56,8 +57,9 @@ export const VideoUpload = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) { showToast('Please add a title', 'error'); return; }
-    if (!videoFile) { showToast('Please select a video file', 'error'); return; }
+    setUploadError(null);
+    if (!title.trim()) { showToast('Please add a title', 'error'); setUploadError('A video title is required before publishing.'); return; }
+    if (!videoFile) { showToast('Please select a video file', 'error'); setUploadError('Please select a video file to upload.'); return; }
 
     setUploading(true);
     setProgress(10);
@@ -107,6 +109,7 @@ export const VideoUpload = () => {
       showToast('Video uploaded successfully!');
     } catch (err) {
       console.error('Upload error:', err);
+      setUploadError(err.message || 'Upload failed. Please try again.');
       showToast(err.message || 'Upload failed. Please try again.', 'error');
     } finally {
       setUploading(false);
@@ -218,20 +221,51 @@ export const VideoUpload = () => {
           </div>
         </div>
 
+        {/* Upload Error */}
+        {uploadError && !uploading && (
+          <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl border border-rose-200 dark:border-rose-800/60 bg-rose-50 dark:bg-rose-950/30">
+            <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-xs font-semibold text-rose-700 dark:text-rose-300">Upload failed</p>
+              <p className="text-xs text-rose-600 dark:text-rose-400 mt-0.5">{uploadError}</p>
+            </div>
+            <button type="button" onClick={() => setUploadError(null)} className="p-0.5 rounded hover:bg-rose-100 dark:hover:bg-rose-900 shrink-0">
+              <X className="w-3.5 h-3.5 text-rose-400" />
+            </button>
+          </div>
+        )}
+
         {/* Upload Progress */}
         {uploading && (
           <div className="space-y-2">
-            <div className="h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+            <div className="h-2.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-teal-500 to-teal-400 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 text-center">{progress}% — {progress < 90 ? 'Uploading video...' : 'Processing...'}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 text-center font-medium">{progress}% — {progress < 90 ? 'Uploading video...' : 'Processing and saving...'}</p>
           </div>
         )}
 
         {/* Submit */}
-        <button type="submit" disabled={uploading || !title.trim()} className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 disabled:bg-slate-300 dark:disabled:bg-slate-700 disabled:cursor-not-allowed transition-all shadow-xs shadow-teal-500/20">
-          <Upload className="w-4 h-4" />
-          {uploading ? 'Uploading...' : 'Publish Video'}
+        <button
+          type="submit"
+          disabled={uploading}
+          className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold transition-all shadow-md
+            bg-teal-600 hover:bg-teal-700 active:bg-teal-800
+            text-white
+            disabled:bg-teal-400 disabled:dark:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-80
+            focus:outline-none focus:ring-4 focus:ring-teal-300 dark:focus:ring-teal-700"
+        >
+          {uploading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin shrink-0" />
+              Uploading... {progress > 0 ? `${progress}%` : ''}
+            </>
+          ) : (
+            <>
+              <Upload className="w-4 h-4 shrink-0" />
+              Publish Video
+            </>
+          )}
         </button>
       </form>
       <AuthModal />
