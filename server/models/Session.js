@@ -32,6 +32,20 @@ const SessionSchema = new mongoose.Schema({
   learningObjective: { type: String, default: '' },
   sessionNotes: { type: String, default: '' },
   sharedResources: [{ type: String }],
+  whiteboardData: {
+    strokes: [
+      {
+        strokeId: { type: String },
+        userId: { type: String },
+        tool: { type: String, default: 'pen' },
+        color: { type: String, default: '#000000' },
+        width: { type: Number, default: 2 },
+        points: [{ x: Number, y: Number }],
+        timestamp: { type: Date, default: Date.now }
+      }
+    ],
+    lastClearedAt: { type: Date, default: null }
+  },
   taskSubmission: {
     url: String,
     notes: String,

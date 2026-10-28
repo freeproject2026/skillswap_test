@@ -7,15 +7,20 @@ const JWT_SECRET = process.env.JWT_SECRET || 'skillswap_super_secret_jwt_key_for
  * Validates Bearer token and attaches user payload to req.user
  */
 export const requireAuth = (req, res, next) => {
+  let token = null;
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.split(' ')[1];
+  } else if (req.query && req.query.token) {
+    token = req.query.token;
+  }
+
+  if (!token) {
     return res.status(401).json({
       success: false,
       error: 'Authentication required. Missing or malformed token.'
     });
   }
-
-  const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.user = decoded;

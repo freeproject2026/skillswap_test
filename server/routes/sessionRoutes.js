@@ -592,4 +592,314 @@ router.post('/:id/review', requireAuth, async (req, res) => {
   }
 });
 
+// ==========================================
+// REAL-TIME LIVE SESSION & WHITEBOARD SIGNALING
+// ==========================================
+
+const sessionRooms = new Map();
+
+function getOrCreateRoom(sessionId) {
+  if (!sessionRooms.has(sessionId)) {
+    sessionRooms.set(sessionId, {
+      clients: new Set(),
+      signals: [],
+      events: [],
+      seq: 0
+    });
+  }
+  return sessionRooms.get(sessionId);
+}
+
+function broadcastToRoom(sessionId, eventData, excludeUserId = null) {
+  const room = sessionRooms.get(sessionId);
+  if (!room) return;
+  const payload = `data: ${JSON.stringify(eventData)}\n\n`;
+  for (const client of room.clients) {
+    if (excludeUserId && client.userId === excludeUserId) continue;
+    try {
+      client.res.write(payload);
+    } catch (_e) {
+      // Ignore write errors; handled by on('close')
+    }
+  }
+}
+
+// GET /api/sessions/:id/live-events – Server-Sent Events (SSE) for signaling & real-time events
+router.get('/:id/live-events', requireAuth, async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found.' });
+
+    if (session.tutorId !== req.user.id && session.studentId !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'Unauthorized to join live session events.' });
+    }
+
+    const sessionId = String(req.params.id);
+    const userId = String(req.user.id);
+    const room = getOrCreateRoom(sessionId);
+
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (res.flushHeaders) res.flushHeaders();
+
+    const clientRecord = { userId, res };
+    room.clients.add(clientRecord);
+
+    // Initial connection event
+    res.write(`data: ${JSON.stringify({ type: 'connected', userId, timestamp: Date.now() })}\n\n`);
+
+    // Notify other participant that peer joined
+    broadcastToRoom(sessionId, { type: 'peer-joined', userId, timestamp: Date.now() }, userId);
+
+    // Replay any recent buffered signals intended for this joining peer
+    for (const item of room.signals) {
+      if (item.senderId !== userId && item.timestamp > Date.now() - 30000) {
+        res.write(`data: ${JSON.stringify({
+          type: 'signal',
+          senderId: item.senderId,
+          signal: item.signal,
+          timestamp: item.timestamp
+        })}\n\n`);
+      }
+    }
+
+    // Keep-alive heartbeat every 15 seconds
+    const heartbeat = setInterval(() => {
+      try {
+        res.write(': keep-alive\n\n');
+      } catch (_e) {
+        clearInterval(heartbeat);
+      }
+    }, 15000);
+
+    req.on('close', () => {
+      clearInterval(heartbeat);
+      room.clients.delete(clientRecord);
+      broadcastToRoom(sessionId, { type: 'peer-left', userId, timestamp: Date.now() }, userId);
+      if (room.clients.size === 0) {
+        // Keep room buffer for a few minutes then clean up if empty
+        setTimeout(() => {
+          const r = sessionRooms.get(sessionId);
+          if (r && r.clients.size === 0) {
+            sessionRooms.delete(sessionId);
+          }
+        }, 120000);
+      }
+    });
+  } catch (err) {
+    console.error('SSE live-events error:', err);
+    res.status(500).end();
+  }
+});
+
+// POST /api/sessions/:id/signal – WebRTC signaling exchange (offer, answer, ice-candidate)
+router.post('/:id/signal', requireAuth, async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found.' });
+
+    if (session.tutorId !== req.user.id && session.studentId !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'Unauthorized.' });
+    }
+
+    const sessionId = String(req.params.id);
+    const userId = String(req.user.id);
+    const { signal } = req.body;
+
+    if (!signal) {
+      return res.status(400).json({ success: false, error: 'Missing signal body.' });
+    }
+
+    const room = getOrCreateRoom(sessionId);
+    const signalItem = {
+      id: `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      senderId: userId,
+      signal,
+      timestamp: Date.now()
+    };
+
+    room.signals.push(signalItem);
+    if (room.signals.length > 60) room.signals.shift();
+
+    // Broadcast immediately over SSE
+    broadcastToRoom(sessionId, {
+      type: 'signal',
+      senderId: userId,
+      signal,
+      timestamp: signalItem.timestamp
+    }, userId);
+
+    res.json({ success: true, timestamp: signalItem.timestamp });
+  } catch (err) {
+    console.error('Signal post error:', err);
+    res.status(500).json({ success: false, error: 'Failed to dispatch signal.' });
+  }
+});
+
+// GET /api/sessions/:id/signals – Polling fallback for signals
+router.get('/:id/signals', requireAuth, async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found.' });
+
+    if (session.tutorId !== req.user.id && session.studentId !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'Unauthorized.' });
+    }
+
+    const sessionId = String(req.params.id);
+    const userId = String(req.user.id);
+    const since = Number(req.query.since) || 0;
+
+    const room = getOrCreateRoom(sessionId);
+    const pending = room.signals.filter(s => s.senderId !== userId && s.timestamp > since);
+
+    res.json({ success: true, signals: pending, now: Date.now() });
+  } catch (err) {
+    console.error('Signals get error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch signals.' });
+  }
+});
+
+// GET /api/sessions/:id/whiteboard – Retrieve full saved whiteboard state
+router.get('/:id/whiteboard', requireAuth, async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found.' });
+
+    if (session.tutorId !== req.user.id && session.studentId !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'Unauthorized.' });
+    }
+
+    const strokes = (session.whiteboardData && session.whiteboardData.strokes) || [];
+    res.json({
+      success: true,
+      strokes,
+      lastClearedAt: session.whiteboardData?.lastClearedAt || null
+    });
+  } catch (err) {
+    console.error('Whiteboard get error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch whiteboard.' });
+  }
+});
+
+// POST /api/sessions/:id/whiteboard/stroke – Append an incremental stroke
+router.post('/:id/whiteboard/stroke', requireAuth, async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found.' });
+
+    if (session.tutorId !== req.user.id && session.studentId !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'Unauthorized.' });
+    }
+
+    const { stroke } = req.body;
+    if (!stroke || !stroke.points || !Array.isArray(stroke.points)) {
+      return res.status(400).json({ success: false, error: 'Invalid stroke data.' });
+    }
+
+    const sanitizedStroke = {
+      strokeId: stroke.strokeId || `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      userId: String(req.user.id),
+      tool: stroke.tool || 'pen',
+      color: stroke.color || '#000000',
+      width: Number(stroke.width) || 2,
+      points: stroke.points,
+      timestamp: new Date()
+    };
+
+    // Save to persistent Session document
+    await Session.findByIdAndUpdate(req.params.id, {
+      $push: { 'whiteboardData.strokes': sanitizedStroke }
+    });
+
+    const sessionId = String(req.params.id);
+    const room = getOrCreateRoom(sessionId);
+    room.seq += 1;
+    const event = {
+      seq: room.seq,
+      type: 'stroke',
+      stroke: sanitizedStroke,
+      timestamp: Date.now()
+    };
+    room.events.push(event);
+    if (room.events.length > 200) room.events.shift();
+
+    // Broadcast incremental stroke to other participants in the room
+    broadcastToRoom(sessionId, event, String(req.user.id));
+
+    res.json({ success: true, stroke: sanitizedStroke, seq: room.seq });
+  } catch (err) {
+    console.error('Whiteboard stroke error:', err);
+    res.status(500).json({ success: false, error: 'Failed to save stroke.' });
+  }
+});
+
+// POST /api/sessions/:id/whiteboard/clear – Clear whiteboard canvas
+router.post('/:id/whiteboard/clear', requireAuth, async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found.' });
+
+    if (session.tutorId !== req.user.id && session.studentId !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'Unauthorized.' });
+    }
+
+    const clearedAt = new Date();
+    await Session.findByIdAndUpdate(req.params.id, {
+      $set: {
+        'whiteboardData.strokes': [],
+        'whiteboardData.lastClearedAt': clearedAt
+      }
+    });
+
+    const sessionId = String(req.params.id);
+    const room = getOrCreateRoom(sessionId);
+    room.seq += 1;
+    const event = {
+      seq: room.seq,
+      type: 'clear',
+      userId: String(req.user.id),
+      timestamp: Date.now()
+    };
+    room.events.push(event);
+    if (room.events.length > 200) room.events.shift();
+
+    // Broadcast clear event
+    broadcastToRoom(sessionId, event, String(req.user.id));
+
+    res.json({ success: true, clearedAt });
+  } catch (err) {
+    console.error('Whiteboard clear error:', err);
+    res.status(500).json({ success: false, error: 'Failed to clear whiteboard.' });
+  }
+});
+
+// GET /api/sessions/:id/whiteboard/events – Polling fallback for whiteboard events
+router.get('/:id/whiteboard/events', requireAuth, async (req, res) => {
+  try {
+    const session = await Session.findById(req.params.id);
+    if (!session) return res.status(404).json({ success: false, error: 'Session not found.' });
+
+    if (session.tutorId !== req.user.id && session.studentId !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'Unauthorized.' });
+    }
+
+    const sessionId = String(req.params.id);
+    const sinceSeq = Number(req.query.since) || 0;
+    const room = getOrCreateRoom(sessionId);
+    const newEvents = room.events.filter(e => e.seq > sinceSeq);
+
+    res.json({
+      success: true,
+      events: newEvents,
+      currentSeq: room.seq
+    });
+  } catch (err) {
+    console.error('Whiteboard events error:', err);
+    res.status(500).json({ success: false, error: 'Failed to fetch events.' });
+  }
+});
+
 export default router;

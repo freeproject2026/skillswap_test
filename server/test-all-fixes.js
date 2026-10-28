@@ -24,10 +24,10 @@ async function run() {
   });
 
   serverProcess.stdout.on('data', (d) => {
-    // console.log(`[SERVER] ${d}`);
+    console.log(`[SERVER] ${d.toString().trim()}`);
   });
   serverProcess.stderr.on('data', (d) => {
-    console.error(`[SERVER ERR] ${d}`);
+    console.error(`[SERVER ERR] ${d.toString().trim()}`);
   });
 
   // Wait for server to come up
@@ -39,9 +39,10 @@ async function run() {
         serverReady = true;
         break;
       }
-    } catch (e) {
-      await sleep(1000);
+    } catch (_e) {
+      // not listening yet
     }
+    await sleep(1000);
   }
 
   if (!serverReady) {

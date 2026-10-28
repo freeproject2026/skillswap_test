@@ -73,6 +73,39 @@ export const sessionService = {
     });
     if (!res?.session) throw new Error(res?.error || 'Failed to submit review');
     return res.session;
+  },
+
+  getWhiteboard: async (sessionId) => {
+    const res = await apiClient.get(`/sessions/${sessionId}/whiteboard`);
+    return res?.strokes || [];
+  },
+
+  sendWhiteboardStroke: async (sessionId, stroke) => {
+    const res = await apiClient.post(`/sessions/${sessionId}/whiteboard/stroke`, { stroke });
+    return res?.stroke;
+  },
+
+  clearWhiteboard: async (sessionId) => {
+    const res = await apiClient.post(`/sessions/${sessionId}/whiteboard/clear`);
+    return res?.clearedAt;
+  },
+
+  sendSignal: async (sessionId, signal) => {
+    const res = await apiClient.post(`/sessions/${sessionId}/signal`, { signal });
+    return res?.timestamp;
+  },
+
+  pollSignals: async (sessionId, since = 0) => {
+    const res = await apiClient.get(`/sessions/${sessionId}/signals?since=${encodeURIComponent(since)}`);
+    return res?.signals || [];
+  },
+
+  pollWhiteboardEvents: async (sessionId, sinceSeq = 0) => {
+    const res = await apiClient.get(`/sessions/${sessionId}/whiteboard/events?since=${encodeURIComponent(sinceSeq)}`);
+    return {
+      events: res?.events || [],
+      currentSeq: res?.currentSeq || sinceSeq
+    };
   }
 };
 
